@@ -1,5 +1,6 @@
 from app import webserver
 from flask import request, jsonify
+from app.task_runner import Task, TaskType
 
 import os
 import json
@@ -24,7 +25,6 @@ def post_endpoint():
 
 @webserver.route('/api/get_results/<job_id>', methods=['GET'])
 def get_response(job_id):
-    print(f"JobID is {job_id}")
     # TODO
     # Check if job_id is valid
 
@@ -36,20 +36,30 @@ def get_response(job_id):
     #    })
 
     # If not, return running status
-    return jsonify({'status': 'NotImplemented'})
+    if request.method != 'GET':
+        return jsonify({"error": "Method not allowed"}), 405
+    
+    if job_id and isinstance(job_id, int) and job_id <= webserver.job_counter:
+        if job_id in webserver.task_runner.results:
+            return jsonify({"status": "done",
+                        "data": webserver.task_runner.results[job_id]})
+        return jsonify({"status": "running"})    
+    return jsonify({"status": "error",}), 405
 
 @webserver.route('/api/states_mean', methods=['POST'])
 def states_mean_request():
-    # Get request data
-    data = request.json
-    print(f"Got request {data}")
-
     # TODO
+    # Get request data
     # Register job. Don't wait for task to finish
     # Increment job_id counter
     # Return associated job_id
-
-    return jsonify({"status": "NotImplemented"})
+    if request.method != 'POST':
+        return jsonify({"error": "Method not allowed"}), 405
+    data = request.json
+    with webserver.job_counter_lock:
+        webserver.job_counter += 1
+    webserver.task_runner.add_task(Task(webserver.job_counter, data, TaskType.STATES_MEAN_REQUEST))
+    return jsonify({"job_id": webserver.job_counter})   
 
 @webserver.route('/api/state_mean', methods=['POST'])
 def state_mean_request():
@@ -58,8 +68,13 @@ def state_mean_request():
     # Register job. Don't wait for task to finish
     # Increment job_id counter
     # Return associated job_id
-
-    return jsonify({"status": "NotImplemented"})
+    if request.method != 'POST':
+        return jsonify({"error": "Method not allowed"}), 405
+    data = request.json
+    with webserver.job_counter_lock:
+        webserver.job_counter += 1
+    webserver.task_runner.add_task(Task(webserver.job_counter, data, TaskType.STATE_MEAN_REQUEST))
+    return jsonify({"job_id": webserver.job_counter})
 
 
 @webserver.route('/api/best5', methods=['POST'])
@@ -69,8 +84,13 @@ def best5_request():
     # Register job. Don't wait for task to finish
     # Increment job_id counter
     # Return associated job_id
-
-    return jsonify({"status": "NotImplemented"})
+    if request.method != 'POST':
+        return jsonify({"error": "Method not allowed"}), 405
+    data = request.json
+    with webserver.job_counter_lock:
+        webserver.job_counter += 1
+    webserver.task_runner.add_task(Task(webserver.job_counter, data, TaskType.BEST5))
+    return jsonify({"job_id": webserver.job_counter})    
 
 @webserver.route('/api/worst5', methods=['POST'])
 def worst5_request():
@@ -79,8 +99,13 @@ def worst5_request():
     # Register job. Don't wait for task to finish
     # Increment job_id counter
     # Return associated job_id
-
-    return jsonify({"status": "NotImplemented"})
+    if request.method != 'POST':
+        return jsonify({"error": "Method not allowed"}), 405
+    data = request.json
+    with webserver.job_counter_lock:
+        webserver.job_counter += 1
+    webserver.task_runner.add_task(Task(webserver.job_counter, data, TaskType.WORST5))    
+    return jsonify({"job_id": webserver.job_counter})
 
 @webserver.route('/api/global_mean', methods=['POST'])
 def global_mean_request():
@@ -89,8 +114,13 @@ def global_mean_request():
     # Register job. Don't wait for task to finish
     # Increment job_id counter
     # Return associated job_id
-
-    return jsonify({"status": "NotImplemented"})
+    if request.method != 'POST':
+        return jsonify({"error": "Method not allowed"}), 405
+    data = request.json
+    with webserver.job_counter_lock:
+        webserver.job_counter += 1
+    webserver.task_runner.add_task(Task(webserver.job_counter, data, TaskType.GLOBAL_MEAN_REQUEST))
+    return jsonify({"job_id": webserver.job_counter})    
 
 @webserver.route('/api/diff_from_mean', methods=['POST'])
 def diff_from_mean_request():
@@ -99,8 +129,13 @@ def diff_from_mean_request():
     # Register job. Don't wait for task to finish
     # Increment job_id counter
     # Return associated job_id
-
-    return jsonify({"status": "NotImplemented"})
+    if request.method != 'POST':
+        return jsonify({"error": "Method not allowed"}), 405
+    data = request.json
+    with webserver.job_counter_lock:
+        webserver.job_counter += 1
+    webserver.task_runner.add_task(Task(webserver.job_counter, data, TaskType.DIFF_FROM_MEAN_REQUEST))
+    return jsonify({"job_id": webserver.job_counter})
 
 @webserver.route('/api/state_diff_from_mean', methods=['POST'])
 def state_diff_from_mean_request():
@@ -109,8 +144,13 @@ def state_diff_from_mean_request():
     # Register job. Don't wait for task to finish
     # Increment job_id counter
     # Return associated job_id
-
-    return jsonify({"status": "NotImplemented"})
+    if request.method != 'POST':
+        return jsonify({"error": "Method not allowed"}), 405
+    data = request.json
+    with webserver.job_counter_lock:
+        webserver.job_counter += 1
+    webserver.task_runner.add_task(Task(webserver.job_counter, data, TaskType.STATE_DIFF_FROM_MEAN_REQUEST))    
+    return jsonify({"job_id": webserver.job_counter})
 
 @webserver.route('/api/mean_by_category', methods=['POST'])
 def mean_by_category_request():
@@ -119,8 +159,13 @@ def mean_by_category_request():
     # Register job. Don't wait for task to finish
     # Increment job_id counter
     # Return associated job_id
-
-    return jsonify({"status": "NotImplemented"})
+    if request.method != 'POST':
+        return jsonify({"error": "Method not allowed"}), 405
+    data = request.json
+    with webserver.job_counter_lock:
+        webserver.job_counter += 1
+    webserver.task_runner.add_task(Task(webserver.job_counter, data, TaskType.MEAN_BY_CATEGORY_REQUEST))
+    return jsonify({"job_id": webserver.job_counter})    
 
 @webserver.route('/api/state_mean_by_category', methods=['POST'])
 def state_mean_by_category_request():
@@ -129,8 +174,13 @@ def state_mean_by_category_request():
     # Register job. Don't wait for task to finish
     # Increment job_id counter
     # Return associated job_id
-
-    return jsonify({"status": "NotImplemented"})
+    if request.method != 'POST':
+        return jsonify({"error": "Method not allowed"}), 405
+    data = request.json
+    with webserver.job_counter_lock:
+        webserver.job_counter += 1
+    webserver.task_runner.add_task(Task(webserver.job_counter, data, TaskType.STATE_MEAN_BY_CATEGORY_REQUEST))
+    return jsonify({"job_id": webserver.job_counter})
 
 # You can check localhost in your browser to see what this displays
 @webserver.route('/')
