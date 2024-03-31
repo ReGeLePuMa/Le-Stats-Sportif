@@ -2,9 +2,6 @@ from app import webserver
 from flask import request, jsonify
 from app.task_runner import Task, TaskType
 
-import os
-import json
-
 
 @webserver.before_request
 def log_request_info():
@@ -52,13 +49,14 @@ def get_response(job_id):
     # If not, return running status
     if request.method != 'GET':
         return jsonify({"error": "Method not allowed"}), 405
-    
-    if job_id and isinstance(job_id, int) and (job_id > 0 and job_id <= webserver.job_counter):
-        if job_id in webserver.tasks_runner.results:
-            return jsonify({"status": "done",
-                        "data": webserver.tasks_runner.results[job_id]})
-        return jsonify({"status": "running"})    
-    return jsonify({"status": "Invalid job_id"}), 402
+    with webserver.job_counter_lock:
+        if job_id and isinstance(job_id, int) and (job_id > 0 and job_id <= webserver.job_counter):
+            with webserver.tasks_runner.results_lock:
+                if job_id in webserver.tasks_runner.results:
+                    return jsonify({"status": "done",
+                                "data": webserver.tasks_runner.results[job_id]})
+                return jsonify({"status": "running"})    
+        return jsonify({"status": "Invalid job_id"}), 402
 
 @webserver.route('/api/graceful_shutdown', methods=['GET'])
 def graceful_shutdown():

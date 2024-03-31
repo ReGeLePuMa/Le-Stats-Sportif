@@ -104,10 +104,11 @@ def states_mean_strategy(id, data, data_ingestor):
     question = data['question']
     dataset, _, _ = data_ingestor.fields()
     mean_values = dataset[dataset['Question'] == question].groupby('LocationDesc')['Data_Value'].mean().sort_values().reset_index()
-    json_result = json.dumps(mean_values.set_index('LocationDesc')['Data_Value'].to_dict())
+    result = mean_values.set_index('LocationDesc')['Data_Value'].to_dict()
+    json_result = json.dumps(result)
     with open(f'results/job_id_{id}.json', 'w') as f:
         f.write(json_result)
-    return json_result    
+    return result
 
 def state_mean_strategy(id, data, data_ingestor):
     question = data['question']
@@ -117,7 +118,7 @@ def state_mean_strategy(id, data, data_ingestor):
     json_result = json.dumps({state: mean_value})
     with open(f'results/job_id_{id}.json', 'w') as f:
         f.write(json_result)
-    return json_result
+    return {state: mean_value}
 
 def best5_strategy(id, data, data_ingestor):
     question = data['question']
@@ -128,24 +129,27 @@ def best5_strategy(id, data, data_ingestor):
         mean_values = mean_values.head(5)
     else:
         mean_values = mean_values.tail(5)
-    json_result = json.dumps(mean_values.set_index('LocationDesc')['Data_Value'].to_dict())
+    result  = mean_values.set_index('LocationDesc')['Data_Value'].to_dict()    
+    json_result = json.dumps(result)
     with open(f'results/job_id_{id}.json', 'w') as f:
         f.write(json_result)
-    return json_result
+    return result
 
 def worst5_strategy(id, data, data_ingestor):
     question = data['question']
-    dataset, _ , best_is_max = data_ingestor.fields()
+    dataset, _, best_is_max = data_ingestor.fields()
     ok = True if question in best_is_max else False
     mean_values = dataset[dataset['Question'] == question].groupby('LocationDesc')['Data_Value'].mean().sort_values().reset_index()
     if ok:
-        mean_values = mean_values.tail(5)
-    else:
         mean_values = mean_values.head(5)
-    json_result = json.dumps(mean_values.set_index('LocationDesc')['Data_Value'].to_dict())
+    else:
+        mean_values = mean_values.tail(5)
+    mean_values = mean_values.iloc[::-1]     
+    result  = mean_values.set_index('LocationDesc')['Data_Value'].to_dict()    
+    json_result = json.dumps(result)
     with open(f'results/job_id_{id}.json', 'w') as f:
         f.write(json_result)
-    return json_result
+    return result
 
 def global_mean_strategy(id, data, data_ingestor):
     question = data['question']
@@ -154,18 +158,19 @@ def global_mean_strategy(id, data, data_ingestor):
     json_result = json.dumps({"global_mean": mean_value})
     with open(f'results/job_id_{id}.json', 'w') as f:
         f.write(json_result)
-    return json_result
+    return {"global_mean": mean_value}
 
 def diff_from_mean_strategy(id, data, data_ingestor):
     question = data['question']
     dataset, _, _ = data_ingestor.fields()
     mean_value = dataset[dataset['Question'] == question]['Data_Value'].mean()
     mean_values = dataset[dataset['Question'] == question].groupby('LocationDesc')['Data_Value'].mean().sort_values().reset_index()
-    mean_values['diff'] = mean_values['Data_Value'] - mean_value
-    json_result = json.dumps(mean_values.set_index('LocationDesc')['diff'].to_dict())
+    mean_values['diff'] = mean_value - mean_values['Data_Value']
+    result = mean_values.set_index('LocationDesc')['diff'].to_dict()
+    json_result = json.dumps(result)
     with open(f'results/job_id_{id}.json', 'w') as f:
         f.write(json_result)
-    return json_result
+    return result
 
 def state_diff_from_mean_strategy(id, data, data_ingestor):
     question = data['question']
@@ -173,30 +178,27 @@ def state_diff_from_mean_strategy(id, data, data_ingestor):
     dataset, _, _ = data_ingestor.fields()
     mean_value = dataset[dataset['Question'] == question]['Data_Value'].mean()
     mean_value_state = dataset[(dataset['Question'] == question) & (dataset['LocationDesc'] == state)]['Data_Value'].mean()
-    json_result = json.dumps({state: mean_value_state - mean_value})
+    json_result = json.dumps({state: mean_value - mean_value_state})
     with open(f'results/job_id_{id}.json', 'w') as f:
         f.write(json_result)
-    return json_result
+    return {state: mean_value - mean_value_state}
 
 def mean_by_category_strategy(id, data, data_ingestor):
     question = data['question']
     dataset, _, _ = data_ingestor.fields()
-    mean_values = dataset[[dataset['Question'] == question]].groupby(['LocationDesc', 'StratificationCategory1', 'Stratification1'])['Data_Value'].mean().reset_index() 
+    mean_values = dataset[dataset['Question'] == question].groupby(['LocationDesc', 'StratificationCategory1', 'Stratification1'])['Data_Value'].mean().reset_index() 
     result_dict = {}
-    for _ , row in mean_values.iterrows():
+    for _, row in mean_values.iterrows():
         state = row['LocationDesc']
         category = row['StratificationCategory1']
         segment = row['Stratification1']
         mean_value = row['Data_Value']
-        if state not in result_dict:
-            result_dict[state] = {}
-        if category not in result_dict[state]:
-            result_dict[state][category] = {}
-        result_dict[state][category][segment] = mean_value
+        key = str((state, category, segment))
+        result_dict[key] = mean_value
     json_result = json.dumps(result_dict)
     with open(f"results/job_id_{id}.json", 'w') as f:
         f.write(json_result)
-    return json_result
+    return result_dict
 
 
 def state_mean_by_category_strategy(id, data, data_ingestor):
@@ -209,10 +211,9 @@ def state_mean_by_category_strategy(id, data, data_ingestor):
         category = row['StratificationCategory1']
         segment = row['Stratification1']
         mean_value = row['Data_Value']
-        if category not in result_dict:
-            result_dict[category] = {}
-        result_dict[category][segment] = mean_value
-    json_result = json.dumps(result_dict)
+        key = str((category, segment))
+        result_dict[key] = mean_value
+    json_result = json.dumps({state: result_dict})
     with open(f"results/job_id_{id}.json", 'w') as f:
         f.write(json_result)
-    return json_result
+    return {state: result_dict}
