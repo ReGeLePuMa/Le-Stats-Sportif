@@ -1,3 +1,5 @@
 venv
 .venv
 app/__pycache__
+results/*
+webserver.log*
