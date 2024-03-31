@@ -1,8 +1,10 @@
 from queue import Queue
 from threading import Thread, Event, Lock
 from enum import Enum
+import json
 import time
 import os
+import pandas as pd
 
 class ThreadPool:
     def __init__(self):
@@ -19,7 +21,7 @@ class ThreadPool:
         self.results = {}
         self.results_lock = Lock()
         self.shutdown_event = Event()
-        self.threads = [TaskRunner(self.task_queue, self.shutdown_event) for _ in range(self.nr_threads)]
+        self.threads = [TaskRunner(self.task_queue, self.shutdown_event, self.results, self.results_lock) for _ in range(self.nr_threads)]
 
     def start(self):
         for thread in self.threads:
@@ -30,15 +32,21 @@ class ThreadPool:
 
     def shutdown(self):
         self.shutdown_event.set()
+        self.task_queue.join()
         for thread in self.threads:
-            thread.join()                
+            thread.join()
+
+    def num_jobs(self):
+        return self.task_queue.qsize()                      
         
 
 class TaskRunner(Thread):
-    def __init__(self, task_queue, shutdown_event):
-        super().__init__()
+    def __init__(self, task_queue, shutdown_event, results, results_lock):
+        Thread.__init__(self)
         self.task_queue = task_queue
         self.shutdown_event = shutdown_event
+        self.results = results
+        self.results_lock = results_lock
         
 
     def run(self):
@@ -46,12 +54,12 @@ class TaskRunner(Thread):
             # Get pending job
             # Execute the job and save the result to disk
             # Repeat until graceful_shutdown
-            if self.shutdown_event.is_set():
-                break
             task = self.task_queue.get()
             with self.results_lock:
                 self.results[task.task_id] = task.execute()
             self.task_queue.task_done()
+            if self.shutdown_event.is_set() and self.task_queue.empty():
+                break
 
 
 class TaskType(Enum):
@@ -67,10 +75,11 @@ class TaskType(Enum):
 
 
 class Task:
-    def __init__(self, task_id, task_data, task_type):
+    def __init__(self, task_id, task_data, task_type, data_ingestor):
         self.task_id = task_id
         self.task_data = task_data
         self.task_type = task_type
+        self.data_ingestor = data_ingestor
 
     def execute(self):
         return TaskStrategy.execute_task(self)
@@ -89,32 +98,121 @@ class TaskStrategy:
             TaskType.MEAN_BY_CATEGORY_REQUEST: mean_by_category_strategy,
             TaskType.STATE_MEAN_BY_CATEGORY_REQUEST: state_mean_by_category_strategy
         }
-        return strategy_functions[task.task_type](task.task_data)
+        return strategy_functions[task.task_type](task.task_id, task.task_data, task.data_ingestor)
     
-def states_mean_strategy(data):
-    pass
+def states_mean_strategy(id, data, data_ingestor):
+    question = data['question']
+    dataset, _, _ = data_ingestor.fields()
+    mean_values = dataset[dataset['Question'] == question].groupby('LocationDesc')['Data_Value'].mean().sort_values().reset_index()
+    json_result = json.dumps(mean_values.set_index('LocationDesc')['Data_Value'].to_dict())
+    with open(f'results/job_id_{id}.json', 'w') as f:
+        f.write(json_result)
+    return json_result    
 
-def state_mean_strategy(data):
-    pass
+def state_mean_strategy(id, data, data_ingestor):
+    question = data['question']
+    state = data['state']
+    dataset, _, _ = data_ingestor.fields()
+    mean_value = dataset[(dataset['Question'] == question) & (dataset['LocationDesc'] == state)]['Data_Value'].mean()
+    json_result = json.dumps({state: mean_value})
+    with open(f'results/job_id_{id}.json', 'w') as f:
+        f.write(json_result)
+    return json_result
 
-def best5_strategy(data):
-    pass
+def best5_strategy(id, data, data_ingestor):
+    question = data['question']
+    dataset, best_is_min, _ = data_ingestor.fields()
+    ok = True if question in best_is_min else False
+    mean_values = dataset[dataset['Question'] == question].groupby('LocationDesc')['Data_Value'].mean().sort_values().reset_index()
+    if ok:
+        mean_values = mean_values.head(5)
+    else:
+        mean_values = mean_values.tail(5)
+    json_result = json.dumps(mean_values.set_index('LocationDesc')['Data_Value'].to_dict())
+    with open(f'results/job_id_{id}.json', 'w') as f:
+        f.write(json_result)
+    return json_result
 
-def worst5_strategy(data):
-    pass
+def worst5_strategy(id, data, data_ingestor):
+    question = data['question']
+    dataset, _ , best_is_max = data_ingestor.fields()
+    ok = True if question in best_is_max else False
+    mean_values = dataset[dataset['Question'] == question].groupby('LocationDesc')['Data_Value'].mean().sort_values().reset_index()
+    if ok:
+        mean_values = mean_values.tail(5)
+    else:
+        mean_values = mean_values.head(5)
+    json_result = json.dumps(mean_values.set_index('LocationDesc')['Data_Value'].to_dict())
+    with open(f'results/job_id_{id}.json', 'w') as f:
+        f.write(json_result)
+    return json_result
 
-def global_mean_strategy(data):
-    pass
+def global_mean_strategy(id, data, data_ingestor):
+    question = data['question']
+    dataset, _, _ = data_ingestor.fields()
+    mean_value = dataset[dataset['Question'] == question]['Data_Value'].mean()
+    json_result = json.dumps({"global_mean": mean_value})
+    with open(f'results/job_id_{id}.json', 'w') as f:
+        f.write(json_result)
+    return json_result
 
-def diff_from_mean_strategy(data):
-    pass
+def diff_from_mean_strategy(id, data, data_ingestor):
+    question = data['question']
+    dataset, _, _ = data_ingestor.fields()
+    mean_value = dataset[dataset['Question'] == question]['Data_Value'].mean()
+    mean_values = dataset[dataset['Question'] == question].groupby('LocationDesc')['Data_Value'].mean().sort_values().reset_index()
+    mean_values['diff'] = mean_values['Data_Value'] - mean_value
+    json_result = json.dumps(mean_values.set_index('LocationDesc')['diff'].to_dict())
+    with open(f'results/job_id_{id}.json', 'w') as f:
+        f.write(json_result)
+    return json_result
 
-def state_diff_from_mean_strategy(data):
-    pass
+def state_diff_from_mean_strategy(id, data, data_ingestor):
+    question = data['question']
+    state = data['state']
+    dataset, _, _ = data_ingestor.fields()
+    mean_value = dataset[dataset['Question'] == question]['Data_Value'].mean()
+    mean_value_state = dataset[(dataset['Question'] == question) & (dataset['LocationDesc'] == state)]['Data_Value'].mean()
+    json_result = json.dumps({state: mean_value_state - mean_value})
+    with open(f'results/job_id_{id}.json', 'w') as f:
+        f.write(json_result)
+    return json_result
 
-def mean_by_category_strategy(data):
-    pass
+def mean_by_category_strategy(id, data, data_ingestor):
+    question = data['question']
+    dataset, _, _ = data_ingestor.fields()
+    mean_values = dataset[[dataset['Question'] == question]].groupby(['LocationDesc', 'StratificationCategory1', 'Stratification1'])['Data_Value'].mean().reset_index() 
+    result_dict = {}
+    for _ , row in mean_values.iterrows():
+        state = row['LocationDesc']
+        category = row['StratificationCategory1']
+        segment = row['Stratification1']
+        mean_value = row['Data_Value']
+        if state not in result_dict:
+            result_dict[state] = {}
+        if category not in result_dict[state]:
+            result_dict[state][category] = {}
+        result_dict[state][category][segment] = mean_value
+    json_result = json.dumps(result_dict)
+    with open(f"results/job_id_{id}.json", 'w') as f:
+        f.write(json_result)
+    return json_result
 
 
-def state_mean_by_category_strategy(data):
-    pass  
+def state_mean_by_category_strategy(id, data, data_ingestor):
+    question = data['question']
+    state = data['state']
+    dataset, _, _ = data_ingestor.fields()
+    mean_values = dataset[(dataset['Question'] == question) & (dataset['LocationDesc'] == state)].groupby(['StratificationCategory1', 'Stratification1'])['Data_Value'].mean().reset_index()
+    result_dict = {}
+    for _, row in mean_values.iterrows():
+        category = row['StratificationCategory1']
+        segment = row['Stratification1']
+        mean_value = row['Data_Value']
+        if category not in result_dict:
+            result_dict[category] = {}
+        result_dict[category][segment] = mean_value
+    json_result = json.dumps(result_dict)
+    with open(f"results/job_id_{id}.json", 'w') as f:
+        f.write(json_result)
+    return json_result
