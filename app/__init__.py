@@ -19,12 +19,12 @@ webserver = Flask(__name__)
 webserver.data_ingestor = DataIngestor("./nutrition_activity_obesity_usa_subset.csv")
 webserver.tasks_runner = ThreadPool()
 
-webserver.tasks_runner.start()
-
 webserver.shutdown_event = Event()
 
 webserver.job_counter = 0
 
 webserver.job_counter_lock = Lock()
+
+webserver.tasks_runner.start()
 
 from app import routes
