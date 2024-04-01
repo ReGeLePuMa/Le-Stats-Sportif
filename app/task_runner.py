@@ -2,9 +2,7 @@ from queue import Queue
 from threading import Thread, Event, Lock
 from enum import Enum
 import json
-import time
 import os
-import pandas as pd
 
 class ThreadPool:
     def __init__(self):
@@ -37,8 +35,7 @@ class ThreadPool:
             thread.join()
 
     def num_jobs(self):
-        return self.task_queue.qsize()                      
-        
+        return self.task_queue.qsize()
 
 class TaskRunner(Thread):
     def __init__(self, task_queue, shutdown_event, results, results_lock):
@@ -47,7 +44,7 @@ class TaskRunner(Thread):
         self.shutdown_event = shutdown_event
         self.results = results
         self.results_lock = results_lock
-        
+
 
     def run(self):
         while True:
@@ -99,7 +96,7 @@ class TaskStrategy:
             TaskType.STATE_MEAN_BY_CATEGORY_REQUEST: state_mean_by_category_strategy
         }
         return strategy_functions[task.task_type](task.task_id, task.task_data, task.data_ingestor)
-    
+
 def states_mean_strategy(id, data, data_ingestor):
     question = data['question']
     dataset, _, _ = data_ingestor.fields()
@@ -129,7 +126,7 @@ def best5_strategy(id, data, data_ingestor):
         mean_values = mean_values.head(5)
     else:
         mean_values = mean_values.tail(5)
-    result  = mean_values.set_index('LocationDesc')['Data_Value'].to_dict()    
+    result  = mean_values.set_index('LocationDesc')['Data_Value'].to_dict()
     json_result = json.dumps(result)
     with open(f'results/job_id_{id}.json', 'w') as f:
         f.write(json_result)
@@ -144,8 +141,8 @@ def worst5_strategy(id, data, data_ingestor):
         mean_values = mean_values.head(5)
     else:
         mean_values = mean_values.tail(5)
-    mean_values = mean_values.iloc[::-1]     
-    result  = mean_values.set_index('LocationDesc')['Data_Value'].to_dict()    
+    mean_values = mean_values.iloc[::-1]
+    result  = mean_values.set_index('LocationDesc')['Data_Value'].to_dict()
     json_result = json.dumps(result)
     with open(f'results/job_id_{id}.json', 'w') as f:
         f.write(json_result)
@@ -186,7 +183,7 @@ def state_diff_from_mean_strategy(id, data, data_ingestor):
 def mean_by_category_strategy(id, data, data_ingestor):
     question = data['question']
     dataset, _, _ = data_ingestor.fields()
-    mean_values = dataset[dataset['Question'] == question].groupby(['LocationDesc', 'StratificationCategory1', 'Stratification1'])['Data_Value'].mean().reset_index() 
+    mean_values = dataset[dataset['Question'] == question].groupby(['LocationDesc', 'StratificationCategory1', 'Stratification1'])['Data_Value'].mean().reset_index()
     result_dict = {}
     for _, row in mean_values.iterrows():
         state = row['LocationDesc']
