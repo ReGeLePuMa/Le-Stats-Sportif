@@ -55,11 +55,10 @@ def get_response(job_id):
         return jsonify({"status": "Invalid job_id"}), 402
     with webserver.job_counter_lock:
         if job_id > 0 and job_id <= webserver.job_counter:
-            with webserver.tasks_runner.results_lock:
-                if job_id in webserver.tasks_runner.results:
-                    return jsonify({"status": "done",
-                                "data": webserver.tasks_runner.results[job_id]})
-                return jsonify({"status": "running"})
+            if job_id in webserver.tasks_runner.results:
+                return jsonify({"status": "done",
+                            "data": webserver.tasks_runner.results[job_id]})
+            return jsonify({"status": "running"})
         return jsonify({"status": "Invalid job_id"}), 402
 
 @webserver.route('/api/graceful_shutdown', methods=['GET'])

@@ -17,9 +17,8 @@ class ThreadPool:
         self.nr_threads = os.cpu_count() if 'TP_NUM_OF THREADS' not in os.environ else int(os.environ['TP_NUM_OF THREADS'])
         self.task_queue = Queue()
         self.results = {}
-        self.results_lock = Lock()
         self.shutdown_event = Event()
-        self.threads = [TaskRunner(self.task_queue, self.shutdown_event, self.results, self.results_lock) for _ in range(self.nr_threads)]
+        self.threads = [TaskRunner(self.task_queue, self.shutdown_event, self.results) for _ in range(self.nr_threads)]
 
     def start(self):
         for thread in self.threads:
@@ -38,12 +37,11 @@ class ThreadPool:
         return self.task_queue.qsize()
 
 class TaskRunner(Thread):
-    def __init__(self, task_queue, shutdown_event, results, results_lock):
+    def __init__(self, task_queue, shutdown_event, results):
         Thread.__init__(self)
         self.task_queue = task_queue
         self.shutdown_event = shutdown_event
         self.results = results
-        self.results_lock = results_lock
 
 
     def run(self):
@@ -52,8 +50,7 @@ class TaskRunner(Thread):
             # Execute the job and save the result to disk
             # Repeat until graceful_shutdown
             task = self.task_queue.get()
-            with self.results_lock:
-                self.results[task.task_id] = task.execute()
+            self.results[task.task_id] = task.execute()
             self.task_queue.task_done()
             if self.shutdown_event.is_set() and self.task_queue.empty():
                 break
