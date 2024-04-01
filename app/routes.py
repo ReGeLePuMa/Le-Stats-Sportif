@@ -1,5 +1,5 @@
-from app import webserver
 from flask import request, jsonify
+from app import webserver
 from app.task_runner import Task, TaskType
 
 # Log request and response data
@@ -61,11 +61,22 @@ def get_response(job_id):
     # Lock on job_counter to avoid threads from incrementing it
     with webserver.job_counter_lock:
         # Check if job_id is valid
-        if job_id > 0 and job_id <= webserver.job_counter:
+        if 0 < job_id <= webserver.job_counter:
+            # If the job_id is in results, then it's done and we can return the result
             if job_id in webserver.tasks_runner.results:
+                # Get the result
+                result = webserver.tasks_runner.get_result(job_id)
+                # Remove the result from the results dictionary
+                webserver.tasks_runner.remove_result(job_id)
+                # Add the job_id to the finished jobs set
+                webserver.tasks_runner.add_finished_job(job_id)
                 return jsonify({"status": "done",
-                            "data": webserver.tasks_runner.results[job_id]})
-            return jsonify({"status": "running"})
+                            "data": result})
+            # Else if the job_id is not in results and not in finished jobs, then it's running
+            if job_id not in webserver.tasks_runner.finished_jobs:
+                return jsonify({"status": "running"})
+            # Else if the job_id is not in results and in finished jobs, then it's invalid
+            return jsonify({"status": "Invalid job_id"}), 402
         return jsonify({"status": "Invalid job_id"}), 402
 
 @webserver.route('/api/graceful_shutdown', methods=['GET'])

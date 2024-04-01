@@ -1,5 +1,5 @@
 from queue import Queue
-from threading import Thread, Event, Lock
+from threading import Thread, Event
 from enum import Enum
 import json
 import os
@@ -19,6 +19,9 @@ class ThreadPool:
 
         # Dictionary to store the results of the tasks (job_id: result)
         self.results = {}
+
+        #Set to store finished job_ids
+        self.finished_jobs = set()
         self.shutdown_event = Event()
         self.threads = [TaskRunner(self.task_queue, self.shutdown_event, self.results) for _ in range(self.nr_threads)]
 
@@ -28,6 +31,15 @@ class ThreadPool:
 
     def add_task(self, task):
         self.task_queue.put(task)
+
+    def get_result(self, job_id):
+        return self.results[job_id]
+
+    def remove_result(self, job_id):
+        self.results.pop(job_id)
+
+    def add_finished_job(self, job_id):
+        self.finished_jobs.add(job_id)
 
     def shutdown(self):
         self.shutdown_event.set()
