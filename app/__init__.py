@@ -5,7 +5,7 @@ from app.data_ingestor import DataIngestor
 from app.task_runner import ThreadPool
 from threading import Lock, Event
 
-
+# Configure logging
 logger = logging.getLogger(__name__)
 handler = RotatingFileHandler('webserver.log', maxBytes=10000, backupCount=1)
 handler.setLevel(logging.INFO)
