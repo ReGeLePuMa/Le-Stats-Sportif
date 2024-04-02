@@ -1,9 +1,10 @@
+import os
 import logging
 from logging.handlers import RotatingFileHandler
+from threading import Lock, Event
 from flask import Flask
 from app.data_ingestor import DataIngestor
 from app.task_runner import ThreadPool
-from threading import Lock, Event
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -13,6 +14,10 @@ formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(messag
 handler.setFormatter(formatter)
 logger.addHandler(handler)
 logger.setLevel(logging.INFO)
+
+# Create output directory
+if not os.path.exists('results'):
+    os.mkdir('results')
 
 webserver = Flask(__name__)
 
