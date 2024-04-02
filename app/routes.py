@@ -1,6 +1,9 @@
+import os
+import json
 from flask import request, jsonify
 from app import webserver
 from app.task_runner import Task, TaskType
+
 
 # Log request and response data
 @webserver.before_request
@@ -68,15 +71,14 @@ def get_response(job_id):
                 result = webserver.tasks_runner.get_result(job_id)
                 # Remove the result from the results dictionary
                 webserver.tasks_runner.remove_result(job_id)
-                # Add the job_id to the finished jobs set
-                webserver.tasks_runner.add_finished_job(job_id)
                 return jsonify({"status": "done",
                             "data": result})
-            # Else if the job_id is not in results and not in finished jobs, then it's running
-            if job_id not in webserver.tasks_runner.finished_jobs:
-                return jsonify({"status": "running"})
-            # Else if the job_id is not in results and in finished jobs, then it's invalid
-            return jsonify({"status": "Invalid job_id"}), 402
+            # If the job_id is in results folder, then it's done and we can return the result
+            if f"job_id_{job_id}" in os.listdir("results"):
+                with open(f"results/job_id_{job_id}", "r") as fin:
+                    return jsonify({"status": "done",
+                            "data": json.load(fin)})  
+            return jsonify({"status": "running"})
         return jsonify({"status": "Invalid job_id"}), 402
 
 @webserver.route('/api/graceful_shutdown', methods=['GET'])
@@ -100,7 +102,7 @@ def get_jobs():
         # Iterate through all jobs and check their status
         job_status = []
         for i in range(1, webserver.job_counter+1):
-            if i in webserver.tasks_runner.results:
+            if i in webserver.tasks_runner.results or f"job_id_{i}" in os.listdir("results"):
                 job_status.append({f"job_id_{i}": "done"})
             else:
                 job_status.append({f"job_id_{i}": "running"})

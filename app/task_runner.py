@@ -20,8 +20,6 @@ class ThreadPool:
         # Dictionary to store the results of the tasks (job_id: result)
         self.results = {}
 
-        #Set to store finished job_ids
-        self.finished_jobs = set()
         self.shutdown_event = Event()
         self.threads = [TaskRunner(self.task_queue, self.shutdown_event, self.results) for _ in range(self.nr_threads)]
 
@@ -37,9 +35,6 @@ class ThreadPool:
 
     def remove_result(self, job_id):
         self.results.pop(job_id)
-
-    def add_finished_job(self, job_id):
-        self.finished_jobs.add(job_id)
 
     def shutdown(self):
         self.shutdown_event.set()
@@ -106,215 +101,222 @@ class TaskStrategy:
 
         # Dictionary to map the task type to the corresponding function
         strategy_functions = {
-            TaskType.STATES_MEAN_REQUEST: states_mean_strategy,
-            TaskType.STATE_MEAN_REQUEST: state_mean_strategy,
-            TaskType.BEST5: best5_strategy,
-            TaskType.WORST5: worst5_strategy,
-            TaskType.GLOBAL_MEAN_REQUEST: global_mean_strategy,
-            TaskType.DIFF_FROM_MEAN_REQUEST: diff_from_mean_strategy,
-            TaskType.STATE_DIFF_FROM_MEAN_REQUEST: state_diff_from_mean_strategy,
-            TaskType.MEAN_BY_CATEGORY_REQUEST: mean_by_category_strategy,
-            TaskType.STATE_MEAN_BY_CATEGORY_REQUEST: state_mean_by_category_strategy
+            TaskType.STATES_MEAN_REQUEST: TaskStrategy.states_mean_strategy,
+            TaskType.STATE_MEAN_REQUEST: TaskStrategy.state_mean_strategy,
+            TaskType.BEST5: TaskStrategy.best5_strategy,
+            TaskType.WORST5: TaskStrategy.worst5_strategy,
+            TaskType.GLOBAL_MEAN_REQUEST: TaskStrategy.global_mean_strategy,
+            TaskType.DIFF_FROM_MEAN_REQUEST: TaskStrategy.diff_from_mean_strategy,
+            TaskType.STATE_DIFF_FROM_MEAN_REQUEST: TaskStrategy.state_diff_from_mean_strategy,
+            TaskType.MEAN_BY_CATEGORY_REQUEST: TaskStrategy.mean_by_category_strategy,
+            TaskType.STATE_MEAN_BY_CATEGORY_REQUEST: TaskStrategy.state_mean_by_category_strategy
         }
 
         # Run the corresponding function based on the task type with the task's fields as arguments
         return strategy_functions[task.task_type](task.task_id, task.task_data, task.data_ingestor)
 
+    @staticmethod
+    def states_mean_strategy(id, data, data_ingestor):
+        question = data['question']
+        dataset, _, _ = data_ingestor.fields()
 
-def states_mean_strategy(id, data, data_ingestor):
-    question = data['question']
-    dataset, _, _ = data_ingestor.fields()
+        # Pandas query to get the mean values of the question for each state
+        mean_values = dataset[dataset['Question'] == question].groupby('LocationDesc')['Data_Value'].mean().sort_values().reset_index()
 
-    # Pandas query to get the mean values of the question for each state
-    mean_values = dataset[dataset['Question'] == question].groupby('LocationDesc')['Data_Value'].mean().sort_values().reset_index()
+        # Convert the mean values to a dictionary
+        result = mean_values.set_index('LocationDesc')['Data_Value'].to_dict()
 
-    # Convert the mean values to a dictionary
-    result = mean_values.set_index('LocationDesc')['Data_Value'].to_dict()
+        # Write the result to a json file
+        json_result = json.dumps(result)
+        with open(f'results/job_id_{id}.json', 'w') as f:
+            f.write(json_result)
 
-    # Write the result to a json file
-    json_result = json.dumps(result)
-    with open(f'results/job_id_{id}.json', 'w') as f:
-        f.write(json_result)
+        # Return the non-json result
+        return result
+    
+    @staticmethod
+    def state_mean_strategy(id, data, data_ingestor):
+        question = data['question']
+        state = data['state']
+        dataset, _, _ = data_ingestor.fields()
 
-    # Return the non-json result
-    return result
+        # Pandas query to get the mean value of the question for the specified state
+        mean_value = dataset[(dataset['Question'] == question) & (dataset['LocationDesc'] == state)]['Data_Value'].mean()
+        json_result = json.dumps({state: mean_value})
 
-def state_mean_strategy(id, data, data_ingestor):
-    question = data['question']
-    state = data['state']
-    dataset, _, _ = data_ingestor.fields()
+        # Write the result to a json file
+        with open(f'results/job_id_{id}.json', 'w') as f:
+            f.write(json_result)
 
-    # Pandas query to get the mean value of the question for the specified state
-    mean_value = dataset[(dataset['Question'] == question) & (dataset['LocationDesc'] == state)]['Data_Value'].mean()
-    json_result = json.dumps({state: mean_value})
+        # Return the non-json result
+        return {state: mean_value}
 
-    # Write the result to a json file
-    with open(f'results/job_id_{id}.json', 'w') as f:
-        f.write(json_result)
+    @staticmethod
+    def best5_strategy(id, data, data_ingestor):
+        question = data['question']
+        dataset, best_is_min, _ = data_ingestor.fields()
 
-    # Return the non-json result
-    return {state: mean_value}
+        #Check if the question's answer is best when it is minimum
+        ok = True if question in best_is_min else False
+        mean_values = dataset[dataset['Question'] == question].groupby('LocationDesc')['Data_Value'].mean().sort_values().reset_index()
+        if ok:
+            # If yes, then get the first 5 rows
+            mean_values = mean_values.head(5)
+        else:
+            # If no, then get the last 5 rows
+            mean_values = mean_values.tail(5)
 
-def best5_strategy(id, data, data_ingestor):
-    question = data['question']
-    dataset, best_is_min, _ = data_ingestor.fields()
+        # Convert the mean values to a dictionary
+        result  = mean_values.set_index('LocationDesc')['Data_Value'].to_dict()
+        json_result = json.dumps(result)
 
-    #Check if the question's answer is best when it is minimum
-    ok = True if question in best_is_min else False
-    mean_values = dataset[dataset['Question'] == question].groupby('LocationDesc')['Data_Value'].mean().sort_values().reset_index()
-    if ok:
-        # If yes, then get the first 5 rows
-        mean_values = mean_values.head(5)
-    else:
-        # If no, then get the last 5 rows
-        mean_values = mean_values.tail(5)
+        # Write the result to a json file
+        with open(f'results/job_id_{id}.json', 'w') as f:
+            f.write(json_result)
 
-    # Convert the mean values to a dictionary
-    result  = mean_values.set_index('LocationDesc')['Data_Value'].to_dict()
-    json_result = json.dumps(result)
+        # Return the non-json result
+        return result
 
-    # Write the result to a json file
-    with open(f'results/job_id_{id}.json', 'w') as f:
-        f.write(json_result)
+    @staticmethod
+    def worst5_strategy(id, data, data_ingestor):
+        question = data['question']
+        dataset, _, best_is_max = data_ingestor.fields()
 
-    # Return the non-json result
-    return result
+        #Check if the question's answer is best when it is maximum
+        ok = True if question in best_is_max else False
+        mean_values = dataset[dataset['Question'] == question].groupby('LocationDesc')['Data_Value'].mean().sort_values().reset_index()
+        if ok:
+            # If yes, then get the first 5 rows
+            mean_values = mean_values.head(5)
+        else:
+            # If no, then get the last 5 rows
+            mean_values = mean_values.tail(5)
 
-def worst5_strategy(id, data, data_ingestor):
-    question = data['question']
-    dataset, _, best_is_max = data_ingestor.fields()
+        # The mean values are sorted in ascending order, so we need to reverse the order
+        mean_values = mean_values.iloc[::-1]
 
-    #Check if the question's answer is best when it is maximum
-    ok = True if question in best_is_max else False
-    mean_values = dataset[dataset['Question'] == question].groupby('LocationDesc')['Data_Value'].mean().sort_values().reset_index()
-    if ok:
-        # If yes, then get the first 5 rows
-        mean_values = mean_values.head(5)
-    else:
-        # If no, then get the last 5 rows
-        mean_values = mean_values.tail(5)
+        # Convert the mean values to a dictionary
+        result  = mean_values.set_index('LocationDesc')['Data_Value'].to_dict()
+        json_result = json.dumps(result)
 
-    # The mean values are sorted in ascending order, so we need to reverse the order
-    mean_values = mean_values.iloc[::-1]
+        # Write the result to a json file
+        with open(f'results/job_id_{id}.json', 'w') as f:
+            f.write(json_result)
 
-    # Convert the mean values to a dictionary
-    result  = mean_values.set_index('LocationDesc')['Data_Value'].to_dict()
-    json_result = json.dumps(result)
+        # Return the non-json result
+        return result
 
-    # Write the result to a json file
-    with open(f'results/job_id_{id}.json', 'w') as f:
-        f.write(json_result)
+    @staticmethod
+    def global_mean_strategy(id, data, data_ingestor):
+        question = data['question']
+        dataset, _, _ = data_ingestor.fields()
 
-    # Return the non-json result
-    return result
+        # Get the mean value of the question
+        mean_value = dataset[dataset['Question'] == question]['Data_Value'].mean()
+        json_result = json.dumps({"global_mean": mean_value})
 
-def global_mean_strategy(id, data, data_ingestor):
-    question = data['question']
-    dataset, _, _ = data_ingestor.fields()
+        # Write the result to a json file
+        with open(f'results/job_id_{id}.json', 'w') as f:
+            f.write(json_result)
 
-    # Get the mean value of the question
-    mean_value = dataset[dataset['Question'] == question]['Data_Value'].mean()
-    json_result = json.dumps({"global_mean": mean_value})
+        # Return the non-json result
+        return {"global_mean": mean_value}
 
-    # Write the result to a json file
-    with open(f'results/job_id_{id}.json', 'w') as f:
-        f.write(json_result)
+    @staticmethod
+    def diff_from_mean_strategy(id, data, data_ingestor):
+        question = data['question']
+        dataset, _, _ = data_ingestor.fields()
 
-    # Return the non-json result
-    return {"global_mean": mean_value}
+        # Get the mean value of the question
+        mean_value = dataset[dataset['Question'] == question]['Data_Value'].mean()
 
-def diff_from_mean_strategy(id, data, data_ingestor):
-    question = data['question']
-    dataset, _, _ = data_ingestor.fields()
+        # Get the mean values of the question for each state
+        mean_values = dataset[dataset['Question'] == question].groupby('LocationDesc')['Data_Value'].mean().sort_values().reset_index()
 
-    # Get the mean value of the question
-    mean_value = dataset[dataset['Question'] == question]['Data_Value'].mean()
+        # Calculate the difference between the mean value and the mean values of the question for each state
+        mean_values['diff'] = mean_value - mean_values['Data_Value']
 
-    # Get the mean values of the question for each state
-    mean_values = dataset[dataset['Question'] == question].groupby('LocationDesc')['Data_Value'].mean().sort_values().reset_index()
+        # Convert the differences to a dictionary
+        result = mean_values.set_index('LocationDesc')['diff'].to_dict()
+        json_result = json.dumps(result)
 
-    # Calculate the difference between the mean value and the mean values of the question for each state
-    mean_values['diff'] = mean_value - mean_values['Data_Value']
+        # Write the result to a json file
+        with open(f'results/job_id_{id}.json', 'w') as f:
+            f.write(json_result)
 
-    # Convert the differences to a dictionary
-    result = mean_values.set_index('LocationDesc')['diff'].to_dict()
-    json_result = json.dumps(result)
+        # Return the non-json result
+        return result
 
-    # Write the result to a json file
-    with open(f'results/job_id_{id}.json', 'w') as f:
-        f.write(json_result)
+    @staticmethod
+    def state_diff_from_mean_strategy(id, data, data_ingestor):
+        question = data['question']
+        state = data['state']
+        dataset, _, _ = data_ingestor.fields()
 
-    # Return the non-json result
-    return result
+        # Get the mean value of the question
+        mean_value = dataset[dataset['Question'] == question]['Data_Value'].mean()
 
-def state_diff_from_mean_strategy(id, data, data_ingestor):
-    question = data['question']
-    state = data['state']
-    dataset, _, _ = data_ingestor.fields()
+        # Get the mean value of the question for the specified state
+        mean_value_state = dataset[(dataset['Question'] == question) & (dataset['LocationDesc'] == state)]['Data_Value'].mean()
+        json_result = json.dumps({state: mean_value - mean_value_state})
 
-    # Get the mean value of the question
-    mean_value = dataset[dataset['Question'] == question]['Data_Value'].mean()
+        # Write the result to a json file
+        with open(f'results/job_id_{id}.json', 'w') as f:
+            f.write(json_result)
 
-    # Get the mean value of the question for the specified state
-    mean_value_state = dataset[(dataset['Question'] == question) & (dataset['LocationDesc'] == state)]['Data_Value'].mean()
-    json_result = json.dumps({state: mean_value - mean_value_state})
+        # Return the non-json result
+        return {state: mean_value - mean_value_state}
 
-    # Write the result to a json file
-    with open(f'results/job_id_{id}.json', 'w') as f:
-        f.write(json_result)
+    @staticmethod
+    def mean_by_category_strategy(id, data, data_ingestor):
+        question = data['question']
+        dataset, _, _ = data_ingestor.fields()
 
-    # Return the non-json result
-    return {state: mean_value - mean_value_state}
+        # Get the mean values of the question for each state, category, and segment
+        mean_values = dataset[dataset['Question'] == question].groupby(['LocationDesc', 'StratificationCategory1', 'Stratification1'])['Data_Value'].mean().reset_index()
 
-def mean_by_category_strategy(id, data, data_ingestor):
-    question = data['question']
-    dataset, _, _ = data_ingestor.fields()
+        # Convert the mean values to a dictionary
+        result_dict = {}
+        for _, row in mean_values.iterrows():
+            # The format of dictionary is {(state, category, segment) : mean_value}
+            state = row['LocationDesc']
+            category = row['StratificationCategory1']
+            segment = row['Stratification1']
+            mean_value = row['Data_Value']
+            key = str((state, category, segment))
+            result_dict[key] = mean_value
+        json_result = json.dumps(result_dict)
 
-    # Get the mean values of the question for each state, category, and segment
-    mean_values = dataset[dataset['Question'] == question].groupby(['LocationDesc', 'StratificationCategory1', 'Stratification1'])['Data_Value'].mean().reset_index()
+        # Write the result to a json file
+        with open(f"results/job_id_{id}.json", 'w') as f:
+            f.write(json_result)
 
-    # Convert the mean values to a dictionary
-    result_dict = {}
-    for _, row in mean_values.iterrows():
-        # The format of dictionary is {(state, category, segment) : mean_value}
-        state = row['LocationDesc']
-        category = row['StratificationCategory1']
-        segment = row['Stratification1']
-        mean_value = row['Data_Value']
-        key = str((state, category, segment))
-        result_dict[key] = mean_value
-    json_result = json.dumps(result_dict)
+        # Return the non-json result
+        return result_dict
 
-    # Write the result to a json file
-    with open(f"results/job_id_{id}.json", 'w') as f:
-        f.write(json_result)
+    @staticmethod
+    def state_mean_by_category_strategy(id, data, data_ingestor):
+        question = data['question']
+        state = data['state']
+        dataset, _, _ = data_ingestor.fields()
 
-    # Return the non-json result
-    return result_dict
+        # Get the mean values of the question for each category and segment for the specified state
+        mean_values = dataset[(dataset['Question'] == question) & (dataset['LocationDesc'] == state)].groupby(['StratificationCategory1', 'Stratification1'])['Data_Value'].mean().reset_index()
 
+        # Convert the mean values to a dictionary
+        result_dict = {}
+        for _, row in mean_values.iterrows():
+            # The format of dictionary is {(category, segment) : mean_value}
+            category = row['StratificationCategory1']
+            segment = row['Stratification1']
+            mean_value = row['Data_Value']
+            key = str((category, segment))
+            result_dict[key] = mean_value
+        json_result = json.dumps({state: result_dict})
 
-def state_mean_by_category_strategy(id, data, data_ingestor):
-    question = data['question']
-    state = data['state']
-    dataset, _, _ = data_ingestor.fields()
+        # Write the result to a json file
+        with open(f"results/job_id_{id}.json", 'w') as f:
+            f.write(json_result)
 
-    # Get the mean values of the question for each category and segment for the specified state
-    mean_values = dataset[(dataset['Question'] == question) & (dataset['LocationDesc'] == state)].groupby(['StratificationCategory1', 'Stratification1'])['Data_Value'].mean().reset_index()
-
-    # Convert the mean values to a dictionary
-    result_dict = {}
-    for _, row in mean_values.iterrows():
-        # The format of dictionary is {(category, segment) : mean_value}
-        category = row['StratificationCategory1']
-        segment = row['Stratification1']
-        mean_value = row['Data_Value']
-        key = str((category, segment))
-        result_dict[key] = mean_value
-    json_result = json.dumps({state: result_dict})
-
-    # Write the result to a json file
-    with open(f"results/job_id_{id}.json", 'w') as f:
-        f.write(json_result)
-
-    # Return the non-json result
-    return {state: result_dict}
+        # Return the non-json result
+        return {state: result_dict}
