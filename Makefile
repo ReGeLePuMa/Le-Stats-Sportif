@@ -20,3 +20,6 @@ run_server: enforce_venv
 run_tests: enforce_venv
 	python checker/checker.py
 
+run_my_tests: enforce_venv
+	python unittests/TestWebserver.py
+

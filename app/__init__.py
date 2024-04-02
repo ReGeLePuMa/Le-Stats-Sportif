@@ -1,4 +1,5 @@
 import os
+import time
 import logging
 from logging.handlers import RotatingFileHandler
 from threading import Lock, Event
@@ -8,9 +9,10 @@ from app.task_runner import ThreadPool
 
 # Configure logging
 logger = logging.getLogger(__name__)
-handler = RotatingFileHandler('webserver.log', maxBytes=10000, backupCount=1)
+handler = RotatingFileHandler('webserver.log', maxBytes=10000, backupCount=5)
 handler.setLevel(logging.INFO)
 formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+formatter.converter = time.gmtime
 handler.setFormatter(formatter)
 logger.addHandler(handler)
 logger.setLevel(logging.INFO)

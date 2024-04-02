@@ -133,7 +133,7 @@ class TaskStrategy:
 
         # Return the non-json result
         return result
-    
+
     @staticmethod
     def state_mean_strategy(id, data, data_ingestor):
         question = data['question']
@@ -165,6 +165,8 @@ class TaskStrategy:
         else:
             # If no, then get the last 5 rows
             mean_values = mean_values.tail(5)
+            # The mean values are sorted in ascending order, so we need to reverse the order
+            mean_values = mean_values.iloc[::-1]
 
         # Convert the mean values to a dictionary
         result  = mean_values.set_index('LocationDesc')['Data_Value'].to_dict()
@@ -191,9 +193,8 @@ class TaskStrategy:
         else:
             # If no, then get the last 5 rows
             mean_values = mean_values.tail(5)
-
-        # The mean values are sorted in ascending order, so we need to reverse the order
-        mean_values = mean_values.iloc[::-1]
+            # The mean values are sorted in ascending order, so we need to reverse the order
+            mean_values = mean_values.iloc[::-1]
 
         # Convert the mean values to a dictionary
         result  = mean_values.set_index('LocationDesc')['Data_Value'].to_dict()

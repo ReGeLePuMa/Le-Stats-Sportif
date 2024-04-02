@@ -8,15 +8,15 @@ from app.task_runner import Task, TaskType
 # Log request and response data
 @webserver.before_request
 def log_request_info():
-    webserver.logger.info('Request: %s %s', request.method, request.url)
-    webserver.logger.info('Request Headers: %s', request.headers)
-    webserver.logger.info('Request Data: %s', request.get_data())
+    webserver.logger.info(f'Request: {request.method} {request.url}')
+    webserver.logger.info(f'Request Headers: {request.headers}')
+    webserver.logger.info(f'Request Data: {request.get_data()}')
 
 @webserver.after_request
 def log_response_info(response):
-    webserver.logger.info('Response: %s', response.status)
-    webserver.logger.info('Response Headers: %s', response.headers)
-    webserver.logger.info('Response Data: %s', response.get_data())
+    webserver.logger.info(f'Response: {response.status_code}')
+    webserver.logger.info(f'Response Headers: {response.headers}')
+    webserver.logger.info(f'Response Data: {response.get_data()}')
     return response
 
 # Example endpoint definition
@@ -55,7 +55,7 @@ def get_response(job_id):
     if request.method != 'GET':
         return jsonify({"error": "Method not allowed"}), 405
 
-    # job_id is in format job_id_{job_id} and have to extract the number
+    # job_id is in format "job_id_{job_id}" and have to extract the number
     try:
         job_id = int(job_id.split('_')[-1])
     except ValueError:
@@ -77,7 +77,8 @@ def get_response(job_id):
             if f"job_id_{job_id}" in os.listdir("results"):
                 with open(f"results/job_id_{job_id}", "r") as fin:
                     return jsonify({"status": "done",
-                            "data": json.load(fin)})  
+                            "data": json.load(fin)})
+            # Else, the job is still running 
             return jsonify({"status": "running"})
         return jsonify({"status": "Invalid job_id"}), 402
 
