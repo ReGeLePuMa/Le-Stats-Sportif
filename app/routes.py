@@ -78,7 +78,7 @@ def get_response(job_id):
                 with open(f"results/job_id_{job_id}", "r") as fin:
                     return jsonify({"status": "done",
                             "data": json.load(fin)})
-            # Else, the job is still running 
+            # Else, the job is still running
             return jsonify({"status": "running"})
         return jsonify({"status": "Invalid job_id"}), 402
 
@@ -103,8 +103,10 @@ def get_jobs():
         # Iterate through all jobs and check their status
         job_status = []
         for i in range(1, webserver.job_counter+1):
+            # If the job_id is in the results dictionary or has a file in the results folder, then it's done
             if i in webserver.tasks_runner.results or f"job_id_{i}" in os.listdir("results"):
                 job_status.append({f"job_id_{i}": "done"})
+            # Else, the job is still running
             else:
                 job_status.append({f"job_id_{i}": "running"})
         return jsonify({"status" : "done" , "data": job_status})

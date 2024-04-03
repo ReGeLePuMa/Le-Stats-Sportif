@@ -4,3 +4,4 @@ app/__pycache__
 results/*
 webserver.log*
 test.py
+request.http

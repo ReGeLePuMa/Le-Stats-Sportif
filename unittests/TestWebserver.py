@@ -2,7 +2,6 @@ import unittest
 import os
 import time
 import json
-import sys
 import random
 from enum import Enum
 import requests
@@ -138,9 +137,6 @@ if __name__ == '__main__':
         runner = unittest.TextTestRunner()
         runner.run(test_suite())
         print("TestWebserver.py: All tests ran successfully")
-    except:
-        print("TestWebserver.py: Error in running the tests")
-        sys.exit(1)
     finally:
         # Clean up
         os.system("rm -rf results/*")

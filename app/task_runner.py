@@ -1,11 +1,11 @@
-from queue import Queue
-from threading import Thread, Event
+from queue import Queue, Empty
+from threading import Thread
 from enum import Enum
 import json
 import os
 
 class ThreadPool:
-    def __init__(self):
+    def __init__(self, shutdown_event):
         # You must implement a ThreadPool of TaskRunners
         # Your ThreadPool should check if an environment variable TP_NUM_OF_THREADS is defined
         # If the env var is defined, that is the number of threads to be used by the thread pool
@@ -14,13 +14,13 @@ class ThreadPool:
         # You must NOT:
         #   * create more threads than the hardware concurrency allows
         #   * recreate threads for each task
-        self.nr_threads = os.cpu_count() if 'TP_NUM_OF THREADS' not in os.environ else int(os.environ['TP_NUM_OF THREADS'])
+        self.nr_threads = os.cpu_count() if 'TP_NUM_OF_THREADS' not in os.environ else int(os.environ['TP_NUM_OF_THREADS'])
         self.task_queue = Queue()
 
         # Dictionary to store the results of the tasks (job_id: result)
         self.results = {}
 
-        self.shutdown_event = Event()
+        self.shutdown_event = shutdown_event
         self.threads = [TaskRunner(self.task_queue, self.shutdown_event, self.results) for _ in range(self.nr_threads)]
 
     def start(self):
@@ -37,8 +37,6 @@ class ThreadPool:
         self.results.pop(job_id)
 
     def shutdown(self):
-        self.shutdown_event.set()
-
         # Wait for all tasks left in the queue to be completed
         self.task_queue.join()
 
@@ -58,18 +56,22 @@ class TaskRunner(Thread):
 
     def run(self):
         while True:
-            # Get pending job
-            # Execute the job and save the result to disk
-            # Repeat until graceful_shutdown
-            task = self.task_queue.get()
+            try:
+                # Get pending job
+                # Execute the job and save the result to disk
+                # Repeat until graceful_shutdown
 
-            # Put the results in the results dictionary
-            self.results[task.task_id] = task.execute()
-            self.task_queue.task_done()
+                # Get the task from the task queue with a timeout of 1 second so that the thread can check if it can shut down
+                task = self.task_queue.get(timeout=1)
 
-            # Only break if the shutdown event is set and the task queue is empty
-            if self.shutdown_event.is_set() and self.task_queue.empty():
-                break
+                # Put the results in the results dictionary for caching purposes
+                self.results[task.task_id] = task.execute()
+
+                # Notify the queue that the task is done
+                self.task_queue.task_done()
+            except Empty:
+                if self.shutdown_event.is_set():
+                    break
 
 # Enum to represent the different types of tasks
 class TaskType(Enum):
