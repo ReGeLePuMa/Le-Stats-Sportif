@@ -23,3 +23,9 @@ run_tests: enforce_venv
 run_my_tests: enforce_venv
 	python unittests/TestWebserver.py
 
+build_docker:
+	docker build -t webserver .
+
+run_docker:
+	docker run -p 5000:5000 webserver
+
