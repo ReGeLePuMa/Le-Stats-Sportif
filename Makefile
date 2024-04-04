@@ -29,3 +29,6 @@ build_docker:
 run_docker:
 	docker run -p 5000:5000 webserver
 
+clean_docker:
+	docker rmi -f webserver
+

@@ -76,6 +76,7 @@ def get_response(job_id):
             # If the job_id is in results folder, then it's done and we can return the result
             if f"job_id_{job_id}.json" in os.listdir("results"):
                 with open(f"results/job_id_{job_id}.json", "r") as fin:
+                    webserver.logger.info(f"Returning result for job_id_{job_id}")
                     return jsonify({"status": "done",
                             "data": json.load(fin)})
             # Else, the job is still running
