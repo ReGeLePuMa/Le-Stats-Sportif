@@ -132,11 +132,15 @@ def test_suite():
 
 if __name__ == '__main__':
     try:
-        # Run the tests
+        # Clear the results folder
         os.system("rm -rf results/*")
+        # Reset the counter
+        requests.get(f'{TestWebserver.URL}/api/reset_counter', timeout=5)
+        # Run the tests
         runner = unittest.TextTestRunner()
         runner.run(test_suite())
         print("TestWebserver.py: All tests ran successfully")
     finally:
-        # Clean up
+        # Clean up + reset the counter
         os.system("rm -rf results/*")
+        requests.get(f'{TestWebserver.URL}/api/reset_counter', timeout=5)

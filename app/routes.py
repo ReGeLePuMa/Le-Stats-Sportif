@@ -74,9 +74,9 @@ def get_response(job_id):
                 return jsonify({"status": "done",
                             "data": result})
             # If the job_id is in results folder, then it's done and we can return the result
-            if f"job_id_{job_id}.json" in os.listdir("results"):
+            # I am converting to set for the O(1) lookup
+            if f"job_id_{job_id}.json" in set(os.listdir("results")):
                 with open(f"results/job_id_{job_id}.json", "r") as fin:
-                    webserver.logger.info(f"Returning result for job_id_{job_id}")
                     return jsonify({"status": "done",
                             "data": json.load(fin)})
             # Else, the job is still running
@@ -94,6 +94,17 @@ def graceful_shutdown():
     webserver.tasks_runner.shutdown()
     return jsonify({"status": "shutting down"})
 
+@webserver.route('/api/reset_counter', methods=['GET'])
+def reset_counter():
+    # Check if method is GET
+    if request.method != 'GET':
+        return jsonify({"error": "Method not allowed"}), 405
+    
+    # Reset the job_counter
+    with webserver.job_counter_lock:
+        webserver.job_counter = 0
+    return jsonify({"status": "done"})
+
 @webserver.route('/api/jobs', methods=['GET'])
 def get_jobs():
     # Check if method is GET
@@ -105,7 +116,8 @@ def get_jobs():
         job_status = []
         for i in range(1, webserver.job_counter+1):
             # If the job_id is in the results dictionary or has a file in the results folder, then it's done
-            if i in webserver.tasks_runner.results or f"job_id_{i}.json" in os.listdir("results"):
+            # I am converting to set for the O(1) lookup
+            if i in webserver.tasks_runner.results or f"job_id_{i}.json" in set(os.listdir("results")):
                 job_status.append({f"job_id_{i}": "done"})
             # Else, the job is still running
             else:
