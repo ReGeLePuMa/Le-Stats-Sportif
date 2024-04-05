@@ -73,7 +73,12 @@ def get_response(job_id):
         # If the job_id is in results folder, then it's done and we can return the result
         if os.path.exists(f"results/job_id_{job_id}.json"):
             with open(f"results/job_id_{job_id}.json", "r") as fin:
-                return jsonify({"status": "done", "data": json.load(fin)})
+                try:
+                    data = json.load(fin)
+                    return jsonify({"status": "done", "data": data})
+                # The file exists but the server didn't finish writing the result
+                except json.JSONDecodeError:
+                    return jsonify({"status": "running"})
         # Else, the job is still running
         return jsonify({"status": "running"})
     return jsonify({"status": "Invalid job_id"}), 402
@@ -361,7 +366,7 @@ def state_mean_by_category_request():
 @webserver.route('/index')
 def index():
     routes = get_defined_routes()
-    msg = f"Hello, World!\n Interact with the webserver using one of the defined routes:\n"
+    msg = '<h1 style="text-align: center;">Le Stats Sportif</h1>\n<h2>Interact with the webserver using one of the defined routes:</h2>\n'
 
     # Display each route as a separate HTML <p> tag
     paragraphs = ""

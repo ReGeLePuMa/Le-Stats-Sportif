@@ -14,15 +14,15 @@ class MyCache(OrderedDict):
 
     def __setitem__(self, key, value):
         # If the cache is full, raise an exception
-        if self.size > self.max_size:
+        if self.size == self.max_size:
             raise FullCache("Cache is full")
         super().__setitem__(key, value)
-        self.size += 1
+        self.size = min(self.size + 1, self.max_size)
 
     def __delitem__(self, key):
         super().__delitem__(key)
-        self.size -= 1
+        self.size = max(0, self.size - 1)
 
     def popitem(self, last = True):
-        self.size -= 1
+        self.size = max(0, self.size - 1)
         return super().popitem(last)
