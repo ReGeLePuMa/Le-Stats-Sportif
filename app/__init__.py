@@ -30,6 +30,7 @@ webserver.shutdown_event = Event()
 
 webserver.job_counter = 0
 
+# Reeentrant lock to protect the job counter and to allow the same thread to acquire the lock multiple times
 webserver.job_counter_lock = RLock()
 
 webserver.tasks_runner = ThreadPool(webserver.shutdown_event)

@@ -1,436 +1,413 @@
-====== Tema 1 - Le Stats Sportif ======
+Nume: Petrea Andrei
+Grupă: 331CC
 
-<note important>    
-  * **Deadline:** 7 aprilie 2024, ora 23:55. Primiți un bonus de 10% pentru trimiterea temei cu 2 zile înaintea acestui termen, adică înainte de 5 aprilie 2024, ora 23:55.
-    * **Deadline hard:** 14 aprilie 2024, ora 23:55. Veți primi o depunctare de 10% din punctajul maxim al temei pentru fiecare zi de întârziere, până la maxim 7 zile, adică până pe 14 aprilie 2024, ora 23:55.
-    * **Responsabili:** [[ andreicatalin.ouatu@gmail.com | Andrei Ouatu]], [[andreitrifu.acs@gmail.com|Andrei Trifu]], [[ adumitrescu2708@stud.acs.upb.ro| Alexandra Dumitrescu]],[[eduard.staniloiu@cs.pub.ro | Eduard Stăniloiu]], [[ radunichita99@gmail.com | Radu Nichita]], [[ioana.profeanu@gmail.com| Ioana Profeanu]], [[giorgiana.vlasceanu@gmail.com | Giorgiana Vlăsceanu]] 
-    * **Autori:** [[eduard.staniloiu@cs.pub.ro | Eduard Stăniloiu]], [[giorgiana.vlasceanu@gmail.com | Giorgiana Vlăsceanu]]
-</note>
+# Tema 1 - Le Stats Sportif
 
-<note tip>
-  * Dată publicare: 25 martie
-</note>
+Organizare
+-
 
-===== Scopul temei =====
+Pentru început, am completat ThreadPool-ul din cadrul fișierului task_runner.py, bazându-mă pe 
+mecanismul din figura 1.
 
-  * Utilizarea eficientă a elementelor de sincronizare studiate la laborator
-  * Implementarea unei aplicații concurente utilizând o problemă clasică (client - server)
-  * Aprofundarea anumitor elemente din Python (clase, elemente de sintaxă, threaduri, sincronizare, precum și folosirea modulelor Python pentru lucrul cu threaduri)
+![Fig 1](https://www.nginx.com/wp-content/uploads/2016/07/thread-pools-worker-process-event-cycle.png)
+*Fig. 1*
 
-===== Enunț =====
+Pentru realizarea calculelor, am folosit șablonul de proiectare *Strategy*, definindu-mi astfel
+clasa *Task*, pentru incapsularea id-ului, tipului și datelor necesare pentru calcul.
+```python
+class Task:
+    def __init__(self, task_id, task_data, task_type, data_ingestor):
+        self.task_id = task_id
+        self.task_data = task_data
+        self.task_type = task_type
+        self.data_ingestor = data_ingestor
 
-În cadrul acestei teme veți avea de implementat un server python care va gestiona o serie de requesturi plecând de la un set de date în format *csv* (comma separated values).
-Serverul va oferi statistici pe baza datelor din csv.
+    def execute(self):
+        return TaskStrategy.execute_task(self)
+```
 
-=== Setul de date ===
+Pentru tipul de task, am definit un enum *TaskType*, care conține toate tipurile de task-uri posibile.
+```python
+class TaskType(Enum):
+    STATES_MEAN_REQUEST = 1
+    STATE_MEAN_REQUEST = 2
+    BEST5 = 3
+    WORST5 = 4
+    GLOBAL_MEAN_REQUEST = 5
+    DIFF_FROM_MEAN_REQUEST = 6
+    STATE_DIFF_FROM_MEAN_REQUEST = 7
+    MEAN_BY_CATEGORY_REQUEST = 8
+    STATE_MEAN_BY_CATEGORY_REQUEST = 9
+```
 
-[[https://catalog.data.gov/dataset/nutrition-physical-activity-and-obesity-behavioral-risk-factor-surveillance-system|Setul de date]] conține informații despre nutriție, activitatea fizică și obezitate în Statele Unite ale Americii în perioada 2011 - 2022.
-Datele au fost colectate de către U.S. Department of Health & Human Services.
-Informațiile sunt colectate per stat american (ex. California, Utah, New York) și răspund următorului **set de întrebări**:
-  * 'Percent of adults who engage in no leisure-time physical activity'
-  * 'Percent of adults aged 18 years and older who have obesity'
-  * 'Percent of adults aged 18 years and older who have an overweight classification'
-  * 'Percent of adults who achieve at least 300 minutes a week of moderate-intensity aerobic physical activity or 150 minutes a week of vigorous-intensity aerobic activity (or an equivalent combination)'
-  * 'Percent of adults who achieve at least 150 minutes a week of moderate-intensity aerobic physical activity or 75 minutes a week of vigorous-intensity aerobic physical activity and engage in muscle-strengthening activities on 2 or more days a week'
-  * 'Percent of adults who achieve at least 150 minutes a week of moderate-intensity aerobic physical activity or 75 minutes a week of vigorous-intensity aerobic activity (or an equivalent combination)'
-  * 'Percent of adults who engage in muscle-strengthening activities on 2 or more days a week'
-  * 'Percent of adults who report consuming fruit less than one time daily'
-  * 'Percent of adults who report consuming vegetables less than one time daily'
+Și am definit și clasa *TaskStrategy*, care execută task-urile în funcție de tipul acestora.
+```python
+class TaskStrategy:
+    @staticmethod
+    def execute_task(task):
+        # Dictionary to map the task type to the corresponding function
+        strategy_functions = {
+            TaskType.STATES_MEAN_REQUEST: TaskStrategy.states_mean_strategy,
+            TaskType.STATE_MEAN_REQUEST: TaskStrategy.state_mean_strategy,
+            TaskType.BEST5: TaskStrategy.best5_strategy,
+            TaskType.WORST5: TaskStrategy.worst5_strategy,
+            TaskType.GLOBAL_MEAN_REQUEST: TaskStrategy.global_mean_strategy,
+            TaskType.DIFF_FROM_MEAN_REQUEST: TaskStrategy.diff_from_mean_strategy,
+            TaskType.STATE_DIFF_FROM_MEAN_REQUEST: TaskStrategy.state_diff_from_mean_strategy,
+            TaskType.MEAN_BY_CATEGORY_REQUEST: TaskStrategy.mean_by_category_strategy,
+            TaskType.STATE_MEAN_BY_CATEGORY_REQUEST: TaskStrategy.state_mean_by_category_strategy
+        }
+        # Run the corresponding function based on the task type with the task's fields as arguments
+        return strategy_functions[task.task_type](task.task_id, task.task_data, task.data_ingestor)
+```
 
-Valorile pe care le veți folosi în calculul diverselor statistici la care răspunde aplicația voastră se găsesc în coloana **Data_Value**.
+Pentru fiecare tip de task, am definit o metodă statică în cadrul clasei *TaskStrategy*, care primește
+ca argumente id-ul task-ului, datele necesare pentru calcul și obiectul *DataIngestor*, care conține
+datele din .csv, întrebările care au ca răspuns minimul și întrebarile care au ca răspuns maximul.
+```python
+    @staticmethod
+    def states_mean_strategy(id, data, data_ingestor):
+        question = data['question']
+        dataset, _, _ = data_ingestor.fields()
+        # Pandas query to get the mean values of the question for each state
+        mean_values = dataset[dataset['Question'] == question].groupby('LocationDesc')['Data_Value'].mean().sort_values().reset_index()
+        # Convert the mean values to a dictionary
+        result = mean_values.set_index('LocationDesc')['Data_Value'].to_dict()
+        # Write the result to a json file
+        with open(f'results/job_id_{id}.json', 'w') as f:
+            json.dump(result, f)
+        # Return the non-json result
+        return result
+```
 
-===== Detalii de implementare =====
-
-Aplicația server pe care o dezvoltați este una multi-threaded.
-Atunci când serverul este pornit, trebuie să încărcați fișierul csv și să extrageți informațiile din el a.î. să puteți calcula statisticile cerute la nivel de request.
-
-Întrucât procesarea datelor din csv poate dura mai mult timp, modelul implementat de către server va fi următorul:
- * un endpoit (ex. '/api/states_mean') care primește requestul și va întoarce clientului un **job_id** (ex. "job_id_1", "job_id_2", ..., "job_id_n")
- * endpointul '/api/get_results/job_id' care va verifica dacă job_id-ul este valid, rezultatul calculului este gata sau nu și va returna un răspuns corespunzător (detalii mai jos)
-
-=== Mecanica unui request ===
-
-Asociază un job_id requestului, pune jobul (closure care încalsulează unitatea de lucru) într-o coadă de joburi care este procesată de către un **Thread pool**, incrementează job_id-ul intern și returnează clientului job_id-ul asociat.
-
-Un thread va prelua un job din coada de joburi, va efectua operația asociată (ceea ce a fost capturat de către closure) și va scrie rezultatul calculului într-un fișier cu numele job_id-ului în directorul **results/**.
-
-=== Requesturile pe care trebuie să le implementați sunt ===
-
-== /api/states_mean ==
-
-Primește o întrebare (din **setul de întrebări** de mai sus) și calculează media valorilor înregistrate (**Data_Value**) din intervalul total de timp (2011 - 2022) pentru fiecare stat, și sortează crescător după medie.
-
-== /api/state_mean ==
-
-Primește o întrebare (din **setul de întrebări** de mai sus) și un stat, și calculează media valorilor înregistrate (**Data_Value**) din intervalul total de timp (2011 - 2022).
-
-== /api/best5 ==
-
-Primește o întrebare (din **setul de întrebări** de mai sus) și calculează media valorilor înregistrate (**Data_Value**) din intervalul total de timp (2011 - 2022) și întoarce primele 5 state.
-
-== /api/worst5 ==
-
-Primește o întrebare (din **setul de întrebări** de mai sus) și calculează media valorilor înregistrate (**Data_Value**) din intervalul total de timp (2011 - 2022) și întoarce ultimele 5 state.
-
-<note tip>
-În funcție de întrebare, primele state pot să aibă fie cel mai mic sau cel mai mare scor.
-De exemplu, pentru întrebarea: "Percent of adults who engage in no leisure-time physical activity", primele state (best) vor avea scorurile cele mai mici, iar worst vor avea scorurile cele mai mari.
-Pentru întrebarea: "Percent of adults who engage in muscle-strengthening activities on 2 or more days a week", primele state (best) vor avea scorurile cele mai mari, iar worst vor avea scorurile cele mai mici.
-</note>
-
-== /api/global_mean == 
-
-Primește o întrebare (din **setul de întrebări** de mai sus) și calculează media valorilor înregistrate (**Data_Value**) din intervalul total de timp (2011 - 2022) din întregul set de date.
-
-== /api/diff_from_mean ==
-
-Primește o întrebare (din **setul de întrebări** de mai sus) și calculează diferența dintre global_mean și state_mean pentru toate statele.
-
-== /api/state_diff_from_mean ==
-
-Primește o întrebare (din **setul de întrebări** de mai sus) și un stat, și calculează diferența dintre global_mean și state_mean pentru statul respectiv.
-
-== /api/mean_by_category ==
-
-Primește o întrebare (din **setul de întrebări** de mai sus) și calculează valoarea medie pentru fiecare segment (**Stratification1**) din categoriile (**StratificationCategory1**) fiecărui stat.
-
-== /api/state_mean_by_category ==
-
-Primește o întrebare (din **setul de întrebări** de mai sus) și un stat, și calculează valoarea medie pentru fiecare segment (**Stratification1**) din categoriile (**StratificationCategory1**).
-
-== /api/graceful_shutdown ==
-
-Răspunde la un apel de tipul GET și va duce la notificarea Thread Poolului despre încheierea procesării.
-Scopul acesteia este de a închide aplicația într-un mod graceful: nu se mai acceptă requesturi noi, se termină de procesat requesturile înregistrate până în acel moment (drain mode) și apoi aplicația poate fi oprită.
-
-== /api/jobs ==
-
-Răspunde la un apel de tipul GET cu un JSON care conține toate JOB_ID-urile de până la acel moment și statusul lor.
-De exemplu:
-<code>
-{
-  "status": "done"
-  "data": [
-    { "job_id_1": "done"},
-    { "job_id_2": "running"},
-    { "job_id_3": "running"}
-  ]
-}
-</code>
-
-== /api/num_jobs == 
-
-Răspunde la un apel de tipul GET cu numărul joburilor rămase de procesat.
-După un /api/graceful_shutdown și o perioadă de timp, aceasta ar trebui să întoarcă valoarea 0, semnalând astfel că serverul flask poate fi oprit.
-
-== /api/get_results/<job_id> ==
-
-Răspunde la un apel de tipul GET (job_id-ul este parte din URL).
-Acesta verifică dacă job_id-ul primit este valid și răspunde cu un JSON corespunzător, după cum urmează:
-
-1. JOB_ID-ul este invalid
-<code>
-{
-  "status": "error",
-  "reason": "Invalid job_id"
-}
-</code>
-
-2. JOB_ID-ul este valid, dar rezultatul procesării nu este gata
-<code>
-{
-  "status": "running",
-}
-</code>
-
-3. JOB_ID-ul este valid și rezultatul procesării este gata
-<code>
-{
-  "status": "done",
-  "data": <JSON_REZULTAT_PROCESARE>
-}
-</code>
-
-=== Server ===
-
-Implementarea serverului se face folosind framework-ul **flask** și va extinde scheletul de cod oferit.
-Mai multe detalii despre Flask găsiți mai jos.
-Deasemeni, un tutorial extensiv (pe care vi-l recomandăm) este [[https://blog.miguelgrinberg.com/post/the-flask-mega-tutorial-part-i-hello-world|The flask mega tutorial]].
-
-Python Flask este un micro-framework web open-source care permite dezvoltatorilor să creeze aplicații web ușor și rapid, folosind limbajul de programare Python.
-Flask este minimalist și flexibil, oferind un set de instrumente de bază pentru crearea unei aplicații web, cum ar fi rutele URL, gestionarea cererilor și a sesiunilor, șablonarea și gestionarea cookie-urilor.
-Cu Flask, dezvoltatorii pot construi rapid API-uri sau aplicații web de dimensiuni mici și medii.
-
-== Instalare și activarea mediului de lucru ==
-
-Pentru a instala Flask, creați-vă un mediu virtual (pentru a nu instala pachete global, pe sistem) folosind comanda
-<code>
-$ python -m venv venv
-</code>
-
-Activați mediul virtual
-<code>
-$ source venv/bin/activate
-</code>
-
-Și instalați pachetele din fișierul **requirements.txt**
-<code>
-$ python -m pip install -r requirements.txt
-</code>
-
-Pașii de creare a mediului virtual și de instalare a pachetelor se regăsesc în fișierul Makefile.
-Astfel, pentru a vă crea spațiul de lucru, rulați următoarele comenzi în interpretorul vostru de comenzi (verificat în ''bash'' și ''zsh'')
-<code>
-make create_venv
-source venv/bin/activate
-make install
-</code>
-
-== Quickstart ==
-
-O rută în cadrul unei aplicații web, cum ar fi în Flask, reprezintă un URL (Uniform Resource Locator) specific către care aplicația web va răspunde cu un anumit conținut sau funcționalitate.
-Atunci când un client (de obicei un browser web) face o cerere către serverul web care găzduiește aplicația Flask, ruta determină ce cod va fi executat și ce răspuns va fi returnat clientului.
-În Flask, rutele sunt definite folosind decoratori care leagă funcții Python de URL-uri specifice, permitând astfel aplicației să răspundă în mod dinamic la cereri (requesturi).
-
-În Flask, puteți defini o rută care răspunde la un apel de tip **GET** folosind decoratorul **@app.route()** și specificând metoda *HTTP* (**methods=['GET']**).
-Pentru a răspunde la un apel de tipul **POST** (apel folosit pentru a trimite date de către un client către server) folosim același decorator și specificăm **methods=['POST']**.
-De exemplu:
-
-<code>
-from flask import request
-
-@app.route('/', methods=['GET'])
-def index():
-    return 'Aceasta este o rută care răspunde la un apel de tip GET'
-
-@app.route('/post', methods=['POST'])
-def post_route():
-    data = request.json  # Se obțin datele JSON trimise prin POST
-    return 'Aceasta este o rută care răspunde la un apel de tip POST'
-</code>
-
-În cazul API-urilor este un best practice ca datele returnate să fie în format JSON, pentru a fi ușor de prelucrat de către alte servicii în mod programatic.
-Pentru a returna un obiect JSON în Flask, vom folosi helperul **jsonify()** ca în exemplul de mai jos:
-
-<code>
-from flask import request, jsonify
-
-@webserver.route('/api/post_endpoint', methods=['POST'])
-def post_endpoint():
-    if request.method == 'POST':
-        # Presupunem că metoda conține date JSON
-        data = request.json
-        print(f"got data in post {data}")
-        
-        # Procesăm datele primite
-        # Pentru exemplu, vom returna datele primite
-        response = {"message": "Received data successfully", "data": data}
-        return jsonify(response)
-    else:
-        # Nu acceptăm o altă metodă
+Apoi am completat rutele din cadrul fisierului *routes.py*. Pentru fiecare cerere de tip **POST**,
+ruta arată în felul următor:
+```python
+@webserver.route('/api/global_mean', methods=['POST'])
+def global_mean_request():
+    # TODO
+    # Get request data
+    # Register job. Don't wait for task to finish
+    # Increment job_id counter
+    # Return associated job_id
+    # Check if method is POST
+    if request.method != 'POST':
         return jsonify({"error": "Method not allowed"}), 405
-</code>
+    # Check if server is shutting down
+    if webserver.shutdown_event.is_set():
+        return jsonify({"error": "Server is shutting down"}), 503
+    data = request.json
+    # Increment job_counter atomically
+    with webserver.job_counter_lock:
+        webserver.job_counter += 1
+        curr_job_id = webserver.job_counter
+    # Add task to task queue
+    webserver.tasks_runner.add_task(Task(curr_job_id, data, TaskType.GLOBAL_MEAN_REQUEST, webserver.data_ingestor))
+    return jsonify({"job_id": f"job_id_{curr_job_id}"})
+```
 
-=== Structura input-ului și a output-ului ===
+Ca să i-au rezultatul cererii, am completat metoda de tip **GET** din cadrul aceluiași fișier,
+*get_response*.
+```python
+@webserver.route('/api/get_results/<job_id>', methods=['GET'])
+def get_response(job_id):
+    # TODO
+    # Check if job_id is valid
+    # Check if job_id is done and return the result
+    #    res = res_for(job_id)
+    #    return jsonify({
+    #        'status': 'done',
+    #        'data': res
+    #    })
+    # If not, return running status
+    # Check if method is GET
+    if request.method != 'GET':
+        return jsonify({"error": "Method not allowed"}), 405
+    # job_id is in format "job_id_{job_id}" and have to extract the number
+    try:
+        job_id = int(job_id.split('_')[-1])
+    except ValueError:
+        return jsonify({"status": "Invalid job_id"}), 402
+    # Check if job_id is valid
+    if 0 < job_id <= webserver.job_counter:
+        # If the job_id is in results, then it's done and we can return the result
+        if job_id in webserver.tasks_runner.results:
+            # Get the result
+            result = webserver.tasks_runner.get_result(job_id)
+            # Remove the result from the results dictionary
+            webserver.tasks_runner.remove_result(job_id)
+            return jsonify({"status": "done", "data": result})
+        # If the job_id is in results folder, then it's done and we can return the result
+        if os.path.exists(f"results/job_id_{job_id}.json"):
+            with open(f"results/job_id_{job_id}.json", "r") as fin:
+                try:
+                    data = json.load(fin)
+                    return jsonify({"status": "done", "data": data})
+                # The file exists but the server didn't finish writing the result
+                except json.JSONDecodeError:
+                    return jsonify({"status": "running"})
+        # Else, the job is still running
+        return jsonify({"status": "running"})
+    return jsonify({"status": "Invalid job_id"}), 402
+```
 
-Interacțiunea cu serverul se va face pe bază de mesaje JSON, după cum este descris mai jos.
-Vă recomandăm să vă uitați în suita de teste, în directoarele input și output pentru a vedea informațiile mult mai detaliat.
+Pe partea de logging, am creat in *__init__.py* un logger care scrie într-un fișier *webserver.log*.
+```python
+# Configure logging
+logger = logging.getLogger(__name__)
+# Create a file handler with a maximum file size of 10MB and 5 backups
+handler = RotatingFileHandler('webserver.log', maxBytes=10000000, backupCount=5)
+handler.setLevel(logging.INFO)
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+formatter.converter = time.gmtime
+handler.setFormatter(formatter)
+logger.addHandler(handler)
+logger.setLevel(logging.INFO)
+```
 
-== Input ==
+și am creat metodele de logging per request folosind decoratorii *before_request* și *after_request*,
+detaliind informațiile utile despre cerere și răspuns.
+```python
+# Log request and response data
+@webserver.before_request
+def log_request_info():
+    webserver.logger.info(f'Request: {request.method} {request.url}')
+    webserver.logger.info(f'Request Headers: {request.headers}')
+    webserver.logger.info(f'Request Data: {request.get_data()}')
 
-Un input pentru un request care primește doar o întrebare în următorul format:
-<code>
-{
-  "question": "Percent of adults aged 18 years and older who have an overweight classification"
-}
-</code>
+@webserver.after_request
+def log_response_info(response):
+    webserver.logger.info(f'Response: {response.status_code}')
+    webserver.logger.info(f'Response Headers: {response.headers}')
+    webserver.logger.info(f'Response Data: {response.get_data()}')
+    return response
+```
 
-Unul care așteaptă o întrebare și un stat are următorul format:
-<code>
-{
-  "question": "Percent of adults who engage in no leisure-time physical activity",
-  "state": "South Carolina"
-}
-</code>
+Pe partea de *unit testing*, am creat un fișier *TestWebserver.py* în care am testat corectitudinea
+calculului pentru fiecare tip de task. Mi-am creat o funcție ajutătoare *test_task* pe care o apelez
+cu argumentele în funcția de task-ul testat.
+```python
+ # Helper function to test a task
+    def test_task(self, job_id, task_type, input_file, result_file):
+        # Load the input data
+        with open(input_file, "r") as f:
+            data = json.load(f)
+        # Send the task to the webserver
+        response = requests.post(f'{TestWebserver.URL}{TestWebserver.TASKS_ENPOINTS[task_type]}', json=data, timeout=5)
+        # Check if the task was accepted
+        self.assertEqual(response.status_code, 200)
+        # Wait for the task to finish
+        time.sleep(1)
+        # Check if the results are ready
+        response = requests.get(f'{TestWebserver.URL}/api/get_results/job_id_{job_id}', timeout=5)
+        self.assertEqual(response.status_code, 200)
+        # Check if the file was created
+        self.assertTrue(os.path.exists(f"results/job_id_{job_id}.json"))
+        # Load the results for the calculation
+        with open(f"results/job_id_{job_id}.json", "r") as f:
+            my_result = json.load(f)
+        # Load the real results
+        with open(result_file, "r") as f:
+            real_result = json.load(f)
+        # Check if the results have the same number of entries
+        self.assertEqual(len(my_result), len(real_result))
+        # Check if the entries are in the same order
+        self.assertListEqual(list(my_result.keys()), list(real_result.keys()))
+        # Check if the results are the same with a delta
+        for key in my_result:
+            self.assertAlmostEqual(my_result[key], real_result[key], delta=TestWebserver.EPSILON)
+    
+     # Test the states mean strategy
+    def test_states_mean_strategy(self):
+        # Choose a random input
+        input_nr = random.randint(1,len(os.listdir("tests/states_mean/input")))
+        self.test_task(1, TaskType.STATES_MEAN_REQUEST, f"tests/states_mean/input/in-{input_nr}.json", f"tests/states_mean/output/out-{input_nr}.json")
+```
 
-== Output ==
+unde *TestWebserver.URL* este adresa serverului, *TestWebserver.TASKS_ENPOINTS* este un dicționar de task-uri - rute și *TestWebserver.EPSILON* este o valoare mică pentru a compara două numere reale.
+```python
+    # Epsilon delta for real numbers comparison
+    EPSILON = 0.01
+    # URL of the webserver
+    URL = "http://127.0.0.1:5000"
+    # Endpoints of the tasks
+    TASKS_ENPOINTS = {
+        TaskType.STATES_MEAN_REQUEST: "/api/states_mean",
+        TaskType.STATE_MEAN_REQUEST: "/api/state_mean",
+        TaskType.BEST5: "/api/best5",
+        TaskType.WORST5: "/api/worst5",
+        TaskType.GLOBAL_MEAN_REQUEST: "/api/global_mean",
+        TaskType.DIFF_FROM_MEAN_REQUEST: "/api/diff_from_mean",
+        TaskType.STATE_DIFF_FROM_MEAN_REQUEST: "/api/state_diff_from_mean",
+        TaskType.MEAN_BY_CATEGORY_REQUEST: "/api/mean_by_category",
+        TaskType.STATE_MEAN_BY_CATEGORY_REQUEST: "/api/state_mean_by_category"
+    }
+```
 
-Un răspuns JSON va avea mereu structura:
-<code>
-{
-  "status": "done",
-  "data": <JSON_REZULTAT_PROCESARE>
-}
-</code>
-
-**JSON_REZULTAT_PROCESARE** este un obiect JSON așa cum se regăsește în directorul output, pentru fiecare endpoint din directorul tests.
-
-===== Testare =====
-
-Testarea se va realiza folosind atât unitteste, cât și teste funcționale.
-
-==== Rularea testelor ====
-
-Pentru a rula testele, folosiți fișierul ''Makefile''.
-Într-un shell 1) activați mediul virtual și 2) porniți serverul
-<code>
-source venv/bin/activate
-make run_server
-</code>
-
-Într-un alt shell 1) activați mediul virtual și 2) porniți checkerul
-<code>
-source venv/bin/activate
-make run_tests
-</code>
-
-<note important>
-Trebuie să vă asigurați că ați activat mediul virtual înainte de a rula comenzile din make.
-<code>
-source venv/bin/activate
-</code>
-
-Dacă nu ați activat mediul virtual, ''make'' vă va arunca următoarea eroare (linia, ex 8, poate să difere).
-<code>
-Makefile:8: *** "You must activate your virtual environment. Exiting...".  Stop.
-</code>
-
-</note>
-
-==== Unittesting ====
-
-Pentru testarea funcțiilor din **server** veți folosi modulul de [[https://docs.python.org/3/library/unittest.html | unittesting]] al limbajului Python.
-
-<spoiler Click pentru sumar despre unittesting>
-Pentru a defini un set de unitteste trebuie să vă definiți o clasă care moștenește clasa ''unittest.TestCase''
-<code python demo_unittest.py>
-import unittest
-
-class TestStringMethods(unittest.TestCase):
-
-    def test_upper(self):
-        self.assertEqual('foo'.upper(), 'FOO')
-</code>
-
-Pentru a defini un test, numele metodei trebuie să înceapă cu prefixul ''test_'', așa cum puteți observa în exemplul de mai sus: ''test_upper''.
-Verificările din corpul metodei se fac folosind metodele ''assert*'', în exemplul de mai sus a fost folosită metoda ''assertEqual''. O listă completă a metodelor de verificare disponibile este prezentată în [[https://docs.python.org/3/library/unittest.html#assert-methods | documentație]].
-
-Pentru a rula testele, folosim subcomanda unittest:
-<code bash>
-$ python3 -m unittest demo_unittest.py
-$ # puteti folosi optiunea -v pentru mai multe detalii
-$ python3 -m unittest -v demo_unittest.py
-</code>
-</spoiler>
-
-Pentru a testa comportamentul definiți în fișierul ''unittests/TestWebserver.py'' o clasă de testare numită ''TestWebserver''.
-Clasa ''TestWebserver'' va testa funcționalitatea tuturor rutelor definite de voi.
-Dacă definiți alte metode, va trebui să adăugați teste și pentru acestea.
-
-Vă recomandăm să folosiți metoda [[https://docs.python.org/3/library/unittest.html#unittest.TestCase.setUp | setUp]] pentru a inițializa o instanță a clasei testate și orice altceva ce vă ajută în testarea codului.
-Un exemplu de utilizare a metodei ''setUp'' este disponibil în [[https://docs.python.org/3/library/unittest.html#organizing-test-code | documentație]].
-
-===== Logging =====
-
-Vrem să utilizăm fișiere de logging în aplicațiile pe care le dezvoltăm pentru a putea urmări flowul acestora a.î. să ne ajute în procesul de debug.
-
-Folosind modulul de [[https://docs.python.org/3/library/logging.html | logging]], trebuie să implementați un fișier de log, numit "webserver.log", în care veți urmări comportamentul serverului.
-
-În fișierul de log veți nota, folosind nivelul ''info()'', toate intrările și ieșirile în/din rutele implementate.
-În cazul metodelor care au parametrii de intrare, informația afișată la intrarea în funcție va afișa și valorile parametrilor.
-Fișierul va fi implementat folosind [[https://docs.python.org/3/library/logging.handlers.html#logging.handlers.RotatingFileHandler | RotatingFileHandler]]: astfel se poate specifica o dimensiune maximă a fișierului de log și un număr maxim de copii istorice. RotatingFileHandler ne permite să ținem un istoric al logurilor, fișierele fiind stocate sub forma "file.log", "file.log.1", "file.log.2", ... "file.log.max".
-
-Vă încurajăm să folosiți fișierul de log și pentru a înregistra [[https://docs.python.org/3/library/logging.html#logging.Logger.error | erori]] detectate.
-
-În mod implicit, timestamp-ul logurilor folosește timpul mașinii pe care rulează aplicația (local time). Acest lucru nu este de dorit în practică deoarece nu putem compara loguri de pe mașini aflate în zone geografice diferite. Din acest motiv, timestampul este ținut în format UTC/GMT.
-Asigurați-vă că folosiți gmtime, și nu localtime. Pentru aceasta trebuie să folosiți metoda [[https://docs.python.org/3/library/logging.html#logging.Formatter.formatTime | formatTime]]. 
-
-O descriere completă a cum puteți utiliza modului de logging este prezentă în categoria [[https://docs.python.org/3/howto/logging.html | HOWTO]] a documentației.
-
-===== Precizări încărcare =====
-
-Arhiva temei va fi încărcată pe [[https://curs.upb.ro/2022/mod/assign/view.php?id=156013|moodle - TODO]]
-
-/* Arhiva temei (fişier .zip) va fi uploadată pe site-ul cursului şi trebuie să conţină: */
-
-Arhiva trebuie să conțină:
-  * fișierele temei: ''TODO''
-  * alte fișiere ''.py'' folosite în dezvoltare
-  * ''README''
-  * (opțional) directorul ''.git'' redenumit în ''git'' pentru a permite verificarea automată a temei
-
-<note tip>
-Pentru a documenta realizarea temei, vă recomandăm să folosiți template-ul de [[https://gitlab.cs.pub.ro/asc/asc-public/-/blob/master/assignments/README.example.md|aici]]
-</note>
-
-
-===== Punctare =====
-
-<note important>Tema va fi verificată automat, folosind infrastructura de testare, pe baza unor teste definite în directorul ''tests''. </note>
-
-Tema se va implementa **Python>=3.7**.
-
-Notarea va consta în 80 pct acordate egale între testele funcționale, 10 pct acordate pentru unitteste și 10 pct acordate pentru fișierul de logging. Depunctări posibile sunt:
-  * folosirea incorectă a variabilelor de sincronizare (ex: lock care nu protejează toate accesele la o variabilă partajată, notificări care se pot pierde) (-2 pct)
-  * prezența print-urilor de debug (maxim -10 pct în funcție de gravitate)
-  * folosirea lock-urilor globale (-10 pct)
-  * folosirea variabilelor globale/statice (-5 pct)
-    * Variabilele statice pot fi folosite doar pentru constante
-  * folosirea inutilă a variabilelor de sincronizare (ex: se protejează operații care sunt deja thread-safe) (-5 pct)
-  * alte ineficiențe (ex: creare obiecte inutile, alocare obiecte mai mari decât e necesar, etc.) (-5 pct)
-  * lipsa organizării codului, implementare încâlcită și nemodulară, cod duplicat, funcții foarte lungi (între -1pct și -5 pct în funcție de gravitate)
-  * cod înghesuit/ilizibil, inconsistenţa stilului - vedeți secțiunea Pylint
-    * pentru code-style recomandăm ghidul oficial  [[https://www.python.org/dev/peps/pep-0008/|PEP-8]]
-  * cod comentat/nefolosit (-1 pct)
-  * lipsa comentariilor utile din cod (-5 pct)
-  * fişier README sumar (până la -5 pct)
-  * nerespectarea formatului .zip al arhivei (-2 pct)
-  * alte situaţii nespecificate, dar considerate inadecvate având în vedere obiectivele temei; în special situațiile de modificare a interfeței oferite
-
-Se acordă bonus 5 pct pentru adăugarea directorului ''.git'' și utilizarea versionării în cadrul repository-ului.
-
-<note warning>
-Temele vor fi testate împotriva plagiatului. Orice tentativă de copiere va fi depunctată conform [[asc:regulament|regulamentului]].
-Rezultatele notării automate este orientativă și poate fi afectată de corectarea manuală.
-</note>
-
-==== Pylint ====
-
-Vom testa sursele voastre cu [[https://www.pylint.org/|pylint]] configurat conform fișierului **''pylintrc''** din cadrul repo-ului dedicat temei. Atenție, __rulăm pylint doar pe modulele completate și adăugate de voi__, nu și pe cele ale testerului. 
-
-Deoarece apar diferențe de scor între versiuni diferite de pylint, vom testa temele doar cu [[https://www.pylint.org/#install| ultima versiune]]. Vă recomandăm să o folosiți și voi tot pe aceasta.
-
-Vom face depunctări de până la -5pct dacă verificarea făcută cu pylint vă dă un scor mai mic de 8.
-
-==== Observații ====
-
-  * Pot exista depunctări mai mari decât este specificat în secţiunea [[ #notare | Notare]] pentru implementări care nu respectă obiectivele temei și pentru situatii care nu sunt acoperite în mod automat de către sistemul de testare
-  * Implementarea şi folosirea metodelor oferite în schelet este obligatorie
-  * Puteți adăuga variabile/metode/clase, însă nu puteți schimba antetul metodelor oferite în schelet
-  * Bug-urile de sincronizare, prin natura lor sunt nedeterministe; o temă care conţine astfel de bug-uri poate obţine punctaje diferite la rulări succesive; în acest caz punctajul temei va fi cel dat de tester în momentul corectării
-  * Recomandăm testarea temei în cât mai multe situații de load al sistemului și pe cât mai multe sisteme pentru a descoperi bug-urile de sincronizare
-
-===== Resurse necesare realizării temei =====
-
-Pentru a clona [[https://gitlab.cs.pub.ro/asc/asc-public | repo-ul]] și a accesa resursele temei 1:
-
-<code bash>
-student@asc:~$ git clone https://gitlab.cs.pub.ro/asc/asc-public.git
-student@asc:~$ cd asc/assignments
-student@asc:~/assignments$ cd 1-le_stats_sportif
-</code>
+Ca să testez, mi-am creat o suită de teste, pe care o rulez în cadrul metodei *main*.
+```python
+# Create a test suite
+def test_suite():
+    suite = unittest.TestSuite()
+    tests = [TestWebserver(f"test_{endpoint.split('/')[-1]}_strategy") for endpoint in TestWebserver.TASKS_ENPOINTS.values()]
+    suite.addTests(tests)
+    return suite
 
 
-===== Suport, întrebări și clarificări =====
+if __name__ == '__main__':
+    try:
+        # Clear the results folder
+        os.system("rm -rf results/*")
+        # Reset the counter
+        requests.get(f'{TestWebserver.URL}/api/reset_counter', timeout=5)
+        # Run the tests
+        runner = unittest.TextTestRunner()
+        runner.run(test_suite())
+        print("TestWebserver.py: All tests ran successfully")
+    finally:
+        # Clean up + reset the counter
+        os.system("rm -rf results/*")
+        requests.get(f'{TestWebserver.URL}/api/reset_counter', timeout=5)
+```
 
-Pentru întrebări sau nelămuriri legate de temă folosiți [[https://curs.upb.ro/2023/mod/forum/view.php?id=148546|forumul temei]]. 
+În opinia mea, consider că tema a fost utilă, deoarece am învățat să creez un backend care poate fi
+legat la un site web sau la o aplicație mobilă. Am învățat cum să folosesc un ThreadPool pentru a
+gestiona un număr mare de cereri fară a bloca serverul, cum să creez un logger pentru a scrie informații utile într-un fișier și cum să fac unit testing pentru a verifica corectitudinea codului scris.
+Overall, consider că tema aceasta se numără printre cele mai interesante și utile teme pe care le-am avut până acum.
 
-<note important>
-Orice intrebare e recomandat să conțină o descriere cât mai clară a eventualei probleme. Întrebări de forma: "Nu merge X. De ce?" fără o descriere mai amănunțită vor primi un răspuns mai greu.
+Consider că implementarea mea este una destul de eficientă, mai ales cu unele optimizări făcute de mine +
+cererile *pandas* care mi-au ușurat cu mult munca de a realiza calculele cerute. Am încercat să creez
+o infrastructură a aplicației cât mai modulară, bazându-mă pe șabloane de proiectare de la POO și
+cunoștințele de system design dobândite în scopul interviurilor la anumite companii. Totuși, cred ca
+exista încă loc de îmbunătățire, mai ales în optimizarea timpului de execuție al codului (pe checker îmi ia
+cam 7-8 secunde să ruleze toate testele pe un VM Ubuntu 22.04).
 
-**ATENȚIE** să nu postați imagini cu părți din soluția voastră pe forumul pus la dispoziție sau orice alt canal public de comunicație. Dacă veți face acest lucru, vă asumați răspunderea dacă veți primi copiat pe temă.
+Implementare
+-
 
-</note>
+Am implementat toate funcționalitățile cerute în enunț, la care am adăugat și unele functionalități extra, precum:
+
+* ***Docker*** - am creat un fișier *Dockerfile* pentru a putea rula serverul într-un container Docker ca să
+numai trebuiască să pornesc *venv*-ul și ca să mai învaț cum sa dau deploy la o aplicație intr-un container docker.
+```Dockerfile
+FROM python:3.9-slim-buster
+WORKDIR /app
+COPY requirements.txt requirements.txt
+COPY nutrition_activity_obesity_usa_subset.csv nutrition_activity_obesity_usa_subset.csv
+RUN pip install -r requirements.txt
+COPY app/ .
+EXPOSE 5000
+ENV FLASK_APP=routes
+CMD ["flask", "run", "--host", "0.0.0.0"]
+```
+
+```Makefile
+IS_DOCKER_ACTIVE=false
+ifdef DOCKER
+	IS_DOCKER_ACTIVE:=true
+endif
+
+enforce_venv:
+ifeq ($(and $(IS_VENV_ACTIVE),$(not $(IS_DOCKER_ACTIVE))),false)
+    $(error You must activate your virtual environment or use Docker. Exiting...)
+endif
+
+build_docker:
+	docker build -t webserver .
+
+run_docker:
+	docker run -p 5000:5000 webserver
+
+clean_docker:
+	docker rmi -f webserver
+```
+
+* ***Reset Counter*** - am adăugat o rută care resetează counterul de job-uri, pentru a putea rula unit testele și checker-ul fără a mai fi nevoit să repornesc serverul.
+```python
+@webserver.route('/api/reset_counter', methods=['GET'])
+def reset_counter():
+    # Check if method is GET
+    if request.method != 'GET':
+        return jsonify({"error": "Method not allowed"}), 405
+
+    # Reset the job_counter
+    with webserver.job_counter_lock:
+        webserver.job_counter = 0
+    return jsonify({"status": "done"})
+```
+
+* ***Cache pentru rezultate*** - am adăugat un cache pentru rezultatele cererilor, pentru a reține rezultatele
+ultimelor calcule fară să mai fi nevoit să citesc din fișierul de output.
+```python
+from collections import OrderedDict
+
+# Custom exception to raise when the cache is full
+class FullCache(Exception):
+    def __init__(self, message):
+        super().__init__(message)
+
+# My cache class based on OrderedDict
+class MyCache(OrderedDict):
+    def __init__(self, max_size):
+        super().__init__()
+        self.max_size = max_size
+        self.size = 0
+
+    def __setitem__(self, key, value):
+        # If the cache is full, raise an exception
+        if self.size == self.max_size:
+            raise FullCache("Cache is full")
+        super().__setitem__(key, value)
+        self.size = min(self.size + 1, self.max_size)
+
+    def __delitem__(self, key):
+        super().__delitem__(key)
+        self.size = max(0, self.size - 1)
+
+    def popitem(self, last = True):
+        self.size = max(0, self.size - 1)
+        return super().popitem(last)
+```
+
+```python
+# Custom class for the purpose of caching the results, based on a dictionary (job_id: result)
+self.results = MyCache(ThreadPool.CACHE_SIZE)
+# Try putting the results in the results cache for efficiency
+try:
+    self.results[task.task_id] = task.execute()
+except FullCache:
+    continue
+```
+
+Dificultățile întâmpinate au fost legate majoritar de cerinta vaga a enuntului, care nu specifica clar
+cum ar trebui să implementez anumite funcționalități și am fost nevoit să intreb pe forum. De asemenea,
+de la commit-ul 20, am avut niște probleme cu checker-ul, care imi pica 1-2 cereri din cauza unor erori
+de I/O pe care le-am reperat dupa o privire mai atenta in log-uri, vazând că la un moment dat, când încercam
+să citesc din fișierul de output, acesta avea dimensiunea 0 din cauza că nu se terminase de scris rezultatul
+în el. Am rezolvat această problemă prin a return un răspuns de tip *running* în cazul în care mi se 
+aruncă o excepție de tip *JSONDecodeError*.
+
+Câteva lucruri interesante au fost legate de biblioteca *pandas*, și de cât de ușor mi-a fost să fac
+calculele cerute folosind această bibliotecă. (M-am simțit ca la lab-ul de BD)
 
 
+Resurse utilizate
+-
 
+* ***Tema 2 la APD*** - am folosit cunoștințele de la tema 2 de la APD pentru a implementa ThreadPool-ul  cu ajutorul *threading* și *queue*. Link aici la implementarea mea: https://github.com/ReGeLePuMa/Load-Balancer
+
+* ***https://realpython.com/pandas-dataframe/*** - pentru utilizare de cereri *pandas*
+
+* ***https://medium.com/geekculture/how-to-dockerize-your-flask-application-2d0487ecefb8*** - pentru a învăța cum să dockerizez o aplicație Flask
+
+* ***https://circleci.com/blog/application-logging-with-flask/*** - logging în Flask
+
+* ***https://github.com/kubeflow/examples/blob/master/.pylintrc*** - pentru a-mi face un fișier *.pylintrc* pentru a-mi verifica codul
+
+Git
+-
+https://github.com/ReGeLePuMa/Le-Stats-Sportif
+
+---
+
+Acest model de README a fost adaptat după [exemplul de README de la SO](https://github.com/systems-cs-pub-ro/so/blob/master/assignments/README.example.md).
