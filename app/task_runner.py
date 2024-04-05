@@ -6,9 +6,7 @@ from enum import Enum
 from .my_cache import MyCache, FullCache
 
 class ThreadPool:
-    # The size of the cache
-    CACHE_SIZE = 20
-    def __init__(self, shutdown_event):
+    def __init__(self, shutdown_event, cache_size=20):
         # You must implement a ThreadPool of TaskRunners
         # Your ThreadPool should check if an environment variable TP_NUM_OF_THREADS is defined
         # If the env var is defined, that is the number of threads to be used by the thread pool
@@ -21,7 +19,7 @@ class ThreadPool:
         self.task_queue = Queue()
 
         # Custom class for the purpose of caching the results, based on a dictionary (job_id: result)
-        self.results = MyCache(ThreadPool.CACHE_SIZE)
+        self.results = MyCache(cache_size)
 
         self.shutdown_event = shutdown_event
         self.threads = [TaskRunner(self.task_queue, self.shutdown_event, self.results) for _ in range(self.nr_threads)]
