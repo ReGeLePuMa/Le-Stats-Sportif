@@ -61,27 +61,22 @@ def get_response(job_id):
     except ValueError:
         return jsonify({"status": "Invalid job_id"}), 402
 
-    # Lock on job_counter to avoid threads from incrementing it
-    with webserver.job_counter_lock:
-        # Check if job_id is valid
-        if 0 < job_id <= webserver.job_counter:
-            # If the job_id is in results, then it's done and we can return the result
-            if job_id in webserver.tasks_runner.results:
-                # Get the result
-                result = webserver.tasks_runner.get_result(job_id)
-                # Remove the result from the results dictionary
-                webserver.tasks_runner.remove_result(job_id)
-                return jsonify({"status": "done",
-                            "data": result})
-            # If the job_id is in results folder, then it's done and we can return the result
-            # I am converting to set for the O(1) lookup
-            if f"job_id_{job_id}.json" in set(os.listdir("results")):
-                with open(f"results/job_id_{job_id}.json", "r") as fin:
-                    return jsonify({"status": "done",
-                            "data": json.load(fin)})
-            # Else, the job is still running
-            return jsonify({"status": "running"})
-        return jsonify({"status": "Invalid job_id"}), 402
+    # Check if job_id is valid
+    if 0 < job_id <= webserver.job_counter:
+        # If the job_id is in results, then it's done and we can return the result
+        if job_id in webserver.tasks_runner.results:
+            # Get the result
+            result = webserver.tasks_runner.get_result(job_id)
+            # Remove the result from the results dictionary
+            webserver.tasks_runner.remove_result(job_id)
+            return jsonify({"status": "done", "data": result})
+        # If the job_id is in results folder, then it's done and we can return the result
+        if os.path.exists(f"results/job_id_{job_id}.json"):
+            with open(f"results/job_id_{job_id}.json", "r") as fin:
+                return jsonify({"status": "done", "data": json.load(fin)})
+        # Else, the job is still running
+        return jsonify({"status": "running"})
+    return jsonify({"status": "Invalid job_id"}), 402
 
 @webserver.route('/api/graceful_shutdown', methods=['GET'])
 def graceful_shutdown():
@@ -99,7 +94,7 @@ def reset_counter():
     # Check if method is GET
     if request.method != 'GET':
         return jsonify({"error": "Method not allowed"}), 405
-    
+
     # Reset the job_counter
     with webserver.job_counter_lock:
         webserver.job_counter = 0
@@ -110,19 +105,17 @@ def get_jobs():
     # Check if method is GET
     if request.method != 'GET':
         return jsonify({"error": "Method not allowed"}), 405
-    # Lock on job_counter to avoid threads from incrementing it
-    with webserver.job_counter_lock:
-        # Iterate through all jobs and check their status
-        job_status = []
-        for i in range(1, webserver.job_counter+1):
-            # If the job_id is in the results dictionary or has a file in the results folder, then it's done
-            # I am converting to set for the O(1) lookup
-            if i in webserver.tasks_runner.results or f"job_id_{i}.json" in set(os.listdir("results")):
-                job_status.append({f"job_id_{i}": "done"})
-            # Else, the job is still running
-            else:
-                job_status.append({f"job_id_{i}": "running"})
-        return jsonify({"status" : "done" , "data": job_status})
+
+    # Iterate through all jobs and check their status
+    job_status = []
+    for i in range(1, webserver.job_counter+1):
+        # If the job_id is in the results dictionary or has a file in the results folder, then it's done
+        if i in webserver.tasks_runner.results or os.path.exists(f"results/job_id_{i}.json"):
+            job_status.append({f"job_id_{i}": "done"})
+        # Else, the job is still running
+        else:
+            job_status.append({f"job_id_{i}": "running"})
+    return jsonify({"status" : "done" , "data": job_status})
 
 @webserver.route('/api/num_jobs', methods=['GET'])
 def get_num_jobs():

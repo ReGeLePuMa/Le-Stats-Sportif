@@ -1,10 +1,13 @@
+import json
+import os
 from queue import Queue, Empty
 from threading import Thread
 from enum import Enum
-import json
-import os
+from .my_cache import MyCache, FullCache
 
 class ThreadPool:
+    # The size of the cache
+    CACHE_SIZE = 20
     def __init__(self, shutdown_event):
         # You must implement a ThreadPool of TaskRunners
         # Your ThreadPool should check if an environment variable TP_NUM_OF_THREADS is defined
@@ -17,8 +20,8 @@ class ThreadPool:
         self.nr_threads = os.cpu_count() if 'TP_NUM_OF_THREADS' not in os.environ else int(os.environ['TP_NUM_OF_THREADS'])
         self.task_queue = Queue()
 
-        # Dictionary to store the results of the tasks (job_id: result)
-        self.results = {}
+        # Custom class for the purpose of caching the results, based on a dictionary (job_id: result)
+        self.results = MyCache(ThreadPool.CACHE_SIZE)
 
         self.shutdown_event = shutdown_event
         self.threads = [TaskRunner(self.task_queue, self.shutdown_event, self.results) for _ in range(self.nr_threads)]
@@ -64,8 +67,11 @@ class TaskRunner(Thread):
                 # Get the task from the task queue with a timeout of 1 second so that the thread can check if it can shut down
                 task = self.task_queue.get(timeout=1)
 
-                # Put the results in the results dictionary for caching purposes
-                self.results[task.task_id] = task.execute()
+                # Try putting the results in the results cache for efficiency
+                try:
+                    self.results[task.task_id] = task.execute()
+                except FullCache:
+                    continue
 
                 # Notify the queue that the task is done
                 self.task_queue.task_done()
@@ -129,9 +135,8 @@ class TaskStrategy:
         result = mean_values.set_index('LocationDesc')['Data_Value'].to_dict()
 
         # Write the result to a json file
-        json_result = json.dumps(result)
         with open(f'results/job_id_{id}.json', 'w') as f:
-            f.write(json_result)
+            json.dump(result, f)
 
         # Return the non-json result
         return result
@@ -144,14 +149,14 @@ class TaskStrategy:
 
         # Pandas query to get the mean value of the question for the specified state
         mean_value = dataset[(dataset['Question'] == question) & (dataset['LocationDesc'] == state)]['Data_Value'].mean()
-        json_result = json.dumps({state: mean_value})
+        result = {state: mean_value}
 
         # Write the result to a json file
         with open(f'results/job_id_{id}.json', 'w') as f:
-            f.write(json_result)
+            json.dump(result, f)
 
         # Return the non-json result
-        return {state: mean_value}
+        return result
 
     @staticmethod
     def best5_strategy(id, data, data_ingestor):
@@ -172,11 +177,10 @@ class TaskStrategy:
 
         # Convert the mean values to a dictionary
         result  = mean_values.set_index('LocationDesc')['Data_Value'].to_dict()
-        json_result = json.dumps(result)
 
         # Write the result to a json file
         with open(f'results/job_id_{id}.json', 'w') as f:
-            f.write(json_result)
+            json.dump(result, f)
 
         # Return the non-json result
         return result
@@ -200,11 +204,10 @@ class TaskStrategy:
 
         # Convert the mean values to a dictionary
         result  = mean_values.set_index('LocationDesc')['Data_Value'].to_dict()
-        json_result = json.dumps(result)
 
         # Write the result to a json file
         with open(f'results/job_id_{id}.json', 'w') as f:
-            f.write(json_result)
+            json.dump(result, f)
 
         # Return the non-json result
         return result
@@ -216,14 +219,14 @@ class TaskStrategy:
 
         # Get the mean value of the question
         mean_value = dataset[dataset['Question'] == question]['Data_Value'].mean()
-        json_result = json.dumps({"global_mean": mean_value})
+        result = {"global_mean": mean_value}
 
         # Write the result to a json file
         with open(f'results/job_id_{id}.json', 'w') as f:
-            f.write(json_result)
+            json.dump(result, f)
 
         # Return the non-json result
-        return {"global_mean": mean_value}
+        return result
 
     @staticmethod
     def diff_from_mean_strategy(id, data, data_ingestor):
@@ -241,11 +244,10 @@ class TaskStrategy:
 
         # Convert the differences to a dictionary
         result = mean_values.set_index('LocationDesc')['diff'].to_dict()
-        json_result = json.dumps(result)
 
         # Write the result to a json file
         with open(f'results/job_id_{id}.json', 'w') as f:
-            f.write(json_result)
+            json.dump(result, f)
 
         # Return the non-json result
         return result
@@ -261,11 +263,10 @@ class TaskStrategy:
 
         # Get the mean value of the question for the specified state
         mean_value_state = dataset[(dataset['Question'] == question) & (dataset['LocationDesc'] == state)]['Data_Value'].mean()
-        json_result = json.dumps({state: mean_value - mean_value_state})
 
         # Write the result to a json file
         with open(f'results/job_id_{id}.json', 'w') as f:
-            f.write(json_result)
+            json.dump({state: mean_value - mean_value_state}, f)
 
         # Return the non-json result
         return {state: mean_value - mean_value_state}
@@ -288,11 +289,10 @@ class TaskStrategy:
             mean_value = row['Data_Value']
             key = str((state, category, segment))
             result_dict[key] = mean_value
-        json_result = json.dumps(result_dict)
 
         # Write the result to a json file
         with open(f"results/job_id_{id}.json", 'w') as f:
-            f.write(json_result)
+            json.dump(result_dict, f)
 
         # Return the non-json result
         return result_dict
@@ -315,11 +315,12 @@ class TaskStrategy:
             mean_value = row['Data_Value']
             key = str((category, segment))
             result_dict[key] = mean_value
-        json_result = json.dumps({state: result_dict})
+
+        result = {state: result_dict}
 
         # Write the result to a json file
         with open(f"results/job_id_{id}.json", 'w') as f:
-            f.write(json_result)
+            json.dump(result, f)
 
         # Return the non-json result
-        return {state: result_dict}
+        return result

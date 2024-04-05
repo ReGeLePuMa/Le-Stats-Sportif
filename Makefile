@@ -1,11 +1,16 @@
 IS_VENV_ACTIVE=false
+IS_DOCKER_ACTIVE=false
 ifdef VIRTUAL_ENV
-	IS_VENV_ACTIVE=true
+	IS_VENV_ACTIVE:=true
+endif
+
+ifdef DOCKER
+	IS_DOCKER_ACTIVE:=true
 endif
 
 enforce_venv:
-ifeq ($(IS_VENV_ACTIVE), false)
-	$(error "You must activate your virtual environment. Exiting...")
+ifeq ($(and $(IS_VENV_ACTIVE),$(not $(IS_DOCKER_ACTIVE))),false)
+    $(error You must activate your virtual environment or use Docker. Exiting...)
 endif
 
 create_venv:
@@ -31,4 +36,3 @@ run_docker:
 
 clean_docker:
 	docker rmi -f webserver
-
