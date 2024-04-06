@@ -1,29 +1,31 @@
-import { Link, animateScroll as scroll } from "react-scroll"
-import { useState } from "react"
-import { FaHome } from "react-icons/fa"
-import "../../index.css"
-
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { FaHome } from "react-icons/fa";
+import "../../index.css";
 
 const Navbar = () => {
-
   const [isTapped, setIsTapped] = useState(true);
-
-
+  const navigate = useNavigate();
   const scrollToTop = () => {
-    scroll.scrollToTop();
-    setIsTapped(false);
-    setTimeout(() => setIsTapped(true), 1000);
+    navigate("/");
   };
 
   return (
     <div className="w-screen flex items-center justify-between p-4 bg-black text-white fixed top-0 z-20 overflow-x-hidden my-auto">
       <div>
-      <button className={`flex items-center bg-${isTapped ? 'black' : 'white'} text-${isTapped ? 'white' : 'black'} text-2xl cursor-pointer  min-[700px]:hover:bg-white min-[700px]:hover:text-black rounded-lg min-[700px]:hover:scale-105 transition-all duration-300 p-4`} onClick={scrollToTop}>
-      <FaHome className="mr-2" />
-      <span>
-        <span className="font-normal">LE ST</span>
-        <span className="font-semibold">ATS SPORTIF</span>
-      </span>
+        <button
+          className={`flex items-center bg-${
+            isTapped ? "black" : "white"
+          } text-${
+            isTapped ? "white" : "black"
+          } text-2xl cursor-pointer  min-[700px]:hover:bg-white min-[700px]:hover:text-black rounded-lg min-[700px]:hover:scale-105 transition-all duration-300 p-4`}
+          onClick={scrollToTop}
+        >
+          <FaHome className="mr-2" />
+          <span>
+            <span className="font-normal">LE ST</span>
+            <span className="font-semibold">ATS SPORTIF</span>
+          </span>
         </button>
       </div>
       <div className="hidden sm:flex items-center justify-end flex-1">

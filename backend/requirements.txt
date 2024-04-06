@@ -1,4 +1,5 @@
 pandas
 flask
+flask-cors
 requests
 deepdiff

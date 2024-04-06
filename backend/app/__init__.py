@@ -4,6 +4,7 @@ import logging
 from logging.handlers import RotatingFileHandler
 from threading import RLock, Event
 from flask import Flask
+from flask_cors import CORS
 from app.data_ingestor import DataIngestor
 from app.task_runner import ThreadPool
 
@@ -23,6 +24,7 @@ if not os.path.exists('results'):
     os.mkdir('results')
 
 webserver = Flask(__name__)
+CORS(webserver)
 
 webserver.data_ingestor = DataIngestor("./nutrition_activity_obesity_usa_subset.csv")
 
