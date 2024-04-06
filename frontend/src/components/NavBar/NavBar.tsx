@@ -4,7 +4,7 @@ import { FaHome } from "react-icons/fa";
 import "../../index.css";
 
 const Navbar = () => {
-  const [isTapped, setIsTapped] = useState(true);
+  const [isTapped, _] = useState(true);
   const navigate = useNavigate();
   const scrollToTop = () => {
     navigate("/");

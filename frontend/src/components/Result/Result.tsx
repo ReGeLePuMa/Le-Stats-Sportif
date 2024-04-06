@@ -5,11 +5,6 @@ type ResultProps = {
     taskType: number;
 };
 
-interface StateData {
-    [state: string]: {
-        [category: string]: number;
-    };
-}
 
 const Result: React.FC<ResultProps> = ({ result, taskType }) => {
 
