@@ -360,25 +360,3 @@ def state_mean_by_category_request():
     # Add task to task queue
     webserver.tasks_runner.add_task(Task(curr_job_id, data, TaskType.STATE_MEAN_BY_CATEGORY_REQUEST, webserver.data_ingestor))
     return jsonify({"job_id": f"job_id_{curr_job_id}"})
-
-# You can check localhost in your browser to see what this displays
-@webserver.route('/')
-@webserver.route('/index')
-def index():
-    routes = get_defined_routes()
-    msg = '<h1 style="text-align: center;">Le Stats Sportif</h1>\n<h2>Interact with the webserver using one of the defined routes:</h2>\n'
-
-    # Display each route as a separate HTML <p> tag
-    paragraphs = ""
-    for route in routes:
-        paragraphs += f"<p>{route}</p>"
-
-    msg += paragraphs
-    return msg
-
-def get_defined_routes():
-    routes = []
-    for rule in webserver.url_map.iter_rules():
-        methods = ', '.join(rule.methods)
-        routes.append(f"Endpoint: \"{rule}\" Methods: \"{methods}\"")
-    return routes
