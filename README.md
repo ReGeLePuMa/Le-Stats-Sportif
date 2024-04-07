@@ -287,6 +287,369 @@ Implementare
 
 Am implementat toate funcționalitățile cerute în enunț, la care am adăugat și unele functionalități extra, precum:
 
+* ***Frontend*** - am creat un site web folosind React pentru server, întreagă aplicație fiind deployed în containere
+folosind *Docker Compose*, am încercat să îi dau deploy și pe *Koyeb* însă din cazuâ spec-urilor reduse ale mașini lor
+free (512 MB RAM, 0.1vCPU (ce o fi însemand doar ei știu)) așa că îmi pică *npm install* și nici să pun *node_modules* direct
+nu a mers, așa că o las așa :). Pentru a rula frontend-ul deci, trebuie să treceți în branch-ul *frontend* din repo și să dați
+*make* din root
+```yaml
+services:
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "5000:5000"
+```
+
+```Dockerfile
+FROM node:20.12.1-alpine
+WORKDIR /app
+COPY package.json .
+RUN npm install --no-audit
+COPY . .
+RUN npm run build
+EXPOSE 8080
+CMD [ "npm", "run", "host"]
+```
+
+```Makefile
+.PHONY: build clean
+
+build:
+    docker compose up
+
+clean:
+    docker rmi -f le-stats-sportif-frontend le-stats-sportif-backend
+```
+
+```text
+.
+├── Dockerfile.koyeb
+├── LICENSE
+├── Makefile
+├── README.md
+├── backend
+│   ├── Dockerfile
+│   ├── Makefile
+│   ├── api_server.py
+│   ├── app
+│   │   ├── __init__.py
+│   │   ├── data_ingestor.py
+│   │   ├── my_cache.py
+│   │   ├── routes.py
+│   │   └── task_runner.py
+│   ├── checker
+│   │   └── checker.py
+│   ├── nutrition_activity_obesity_usa_subset.csv
+│   ├── pylintrc
+│   ├── request.http
+│   ├── requirements.txt
+│   ├── results
+│   ├── tests
+│   │   ├── best5
+│   │   │   ├── input
+│   │   │   │   ├── in-1.json
+│   │   │   │   ├── in-2.json
+│   │   │   │   ├── in-3.json
+│   │   │   │   ├── in-4.json
+│   │   │   │   ├── in-5.json
+│   │   │   │   ├── in-6.json
+│   │   │   │   ├── in-7.json
+│   │   │   │   ├── in-8.json
+│   │   │   │   └── in-9.json
+│   │   │   └── output
+│   │   │       ├── out-1.json
+│   │   │       ├── out-2.json
+│   │   │       ├── out-3.json
+│   │   │       ├── out-4.json
+│   │   │       ├── out-5.json
+│   │   │       ├── out-6.json
+│   │   │       ├── out-7.json
+│   │   │       ├── out-8.json
+│   │   │       └── out-9.json
+│   │   ├── diff_from_mean
+│   │   │   ├── input
+│   │   │   │   ├── in-1.json
+│   │   │   │   ├── in-2.json
+│   │   │   │   ├── in-3.json
+│   │   │   │   ├── in-4.json
+│   │   │   │   ├── in-5.json
+│   │   │   │   ├── in-6.json
+│   │   │   │   ├── in-7.json
+│   │   │   │   ├── in-8.json
+│   │   │   │   └── in-9.json
+│   │   │   └── output
+│   │   │       ├── out-1.json
+│   │   │       ├── out-2.json
+│   │   │       ├── out-3.json
+│   │   │       ├── out-4.json
+│   │   │       ├── out-5.json
+│   │   │       ├── out-6.json
+│   │   │       ├── out-7.json
+│   │   │       ├── out-8.json
+│   │   │       └── out-9.json
+│   │   ├── global_mean
+│   │   │   ├── input
+│   │   │   │   ├── in-1.json
+│   │   │   │   ├── in-2.json
+│   │   │   │   ├── in-3.json
+│   │   │   │   ├── in-4.json
+│   │   │   │   ├── in-5.json
+│   │   │   │   ├── in-6.json
+│   │   │   │   ├── in-7.json
+│   │   │   │   ├── in-8.json
+│   │   │   │   └── in-9.json
+│   │   │   └── output
+│   │   │       ├── out-1.json
+│   │   │       ├── out-2.json
+│   │   │       ├── out-3.json
+│   │   │       ├── out-4.json
+│   │   │       ├── out-5.json
+│   │   │       ├── out-6.json
+│   │   │       ├── out-7.json
+│   │   │       ├── out-8.json
+│   │   │       └── out-9.json
+│   │   ├── mean_by_category
+│   │   │   ├── input
+│   │   │   │   ├── in-1.json
+│   │   │   │   ├── in-2.json
+│   │   │   │   ├── in-3.json
+│   │   │   │   ├── in-4.json
+│   │   │   │   ├── in-5.json
+│   │   │   │   ├── in-6.json
+│   │   │   │   ├── in-7.json
+│   │   │   │   ├── in-8.json
+│   │   │   │   └── in-9.json
+│   │   │   └── output
+│   │   │       ├── out-1.json
+│   │   │       ├── out-2.json
+│   │   │       ├── out-3.json
+│   │   │       ├── out-4.json
+│   │   │       ├── out-5.json
+│   │   │       ├── out-6.json
+│   │   │       ├── out-7.json
+│   │   │       ├── out-8.json
+│   │   │       └── out-9.json
+│   │   ├── state_diff_from_mean
+│   │   │   ├── input
+│   │   │   │   ├── in-1.json
+│   │   │   │   ├── in-10.json
+│   │   │   │   ├── in-11.json
+│   │   │   │   ├── in-12.json
+│   │   │   │   ├── in-13.json
+│   │   │   │   ├── in-14.json
+│   │   │   │   ├── in-15.json
+│   │   │   │   ├── in-16.json
+│   │   │   │   ├── in-17.json
+│   │   │   │   ├── in-18.json
+│   │   │   │   ├── in-19.json
+│   │   │   │   ├── in-2.json
+│   │   │   │   ├── in-20.json
+│   │   │   │   ├── in-3.json
+│   │   │   │   ├── in-4.json
+│   │   │   │   ├── in-5.json
+│   │   │   │   ├── in-6.json
+│   │   │   │   ├── in-7.json
+│   │   │   │   ├── in-8.json
+│   │   │   │   └── in-9.json
+│   │   │   └── output
+│   │   │       ├── out-1.json
+│   │   │       ├── out-10.json
+│   │   │       ├── out-11.json
+│   │   │       ├── out-12.json
+│   │   │       ├── out-13.json
+│   │   │       ├── out-14.json
+│   │   │       ├── out-15.json
+│   │   │       ├── out-16.json
+│   │   │       ├── out-17.json
+│   │   │       ├── out-18.json
+│   │   │       ├── out-19.json
+│   │   │       ├── out-2.json
+│   │   │       ├── out-20.json
+│   │   │       ├── out-3.json
+│   │   │       ├── out-4.json
+│   │   │       ├── out-5.json
+│   │   │       ├── out-6.json
+│   │   │       ├── out-7.json
+│   │   │       ├── out-8.json
+│   │   │       └── out-9.json
+│   │   ├── state_mean
+│   │   │   ├── input
+│   │   │   │   ├── in-1.json
+│   │   │   │   ├── in-10.json
+│   │   │   │   ├── in-11.json
+│   │   │   │   ├── in-12.json
+│   │   │   │   ├── in-13.json
+│   │   │   │   ├── in-14.json
+│   │   │   │   ├── in-15.json
+│   │   │   │   ├── in-16.json
+│   │   │   │   ├── in-17.json
+│   │   │   │   ├── in-18.json
+│   │   │   │   ├── in-19.json
+│   │   │   │   ├── in-2.json
+│   │   │   │   ├── in-20.json
+│   │   │   │   ├── in-3.json
+│   │   │   │   ├── in-4.json
+│   │   │   │   ├── in-5.json
+│   │   │   │   ├── in-6.json
+│   │   │   │   ├── in-7.json
+│   │   │   │   ├── in-8.json
+│   │   │   │   └── in-9.json
+│   │   │   └── output
+│   │   │       ├── out-1.json
+│   │   │       ├── out-10.json
+│   │   │       ├── out-11.json
+│   │   │       ├── out-12.json
+│   │   │       ├── out-13.json
+│   │   │       ├── out-14.json
+│   │   │       ├── out-15.json
+│   │   │       ├── out-16.json
+│   │   │       ├── out-17.json
+│   │   │       ├── out-18.json
+│   │   │       ├── out-19.json
+│   │   │       ├── out-2.json
+│   │   │       ├── out-20.json
+│   │   │       ├── out-3.json
+│   │   │       ├── out-4.json
+│   │   │       ├── out-5.json
+│   │   │       ├── out-6.json
+│   │   │       ├── out-7.json
+│   │   │       ├── out-8.json
+│   │   │       └── out-9.json
+│   │   ├── state_mean_by_category
+│   │   │   ├── input
+│   │   │   │   ├── in-1.json
+│   │   │   │   ├── in-10.json
+│   │   │   │   ├── in-11.json
+│   │   │   │   ├── in-12.json
+│   │   │   │   ├── in-13.json
+│   │   │   │   ├── in-14.json
+│   │   │   │   ├── in-15.json
+│   │   │   │   ├── in-16.json
+│   │   │   │   ├── in-17.json
+│   │   │   │   ├── in-18.json
+│   │   │   │   ├── in-19.json
+│   │   │   │   ├── in-2.json
+│   │   │   │   ├── in-20.json
+│   │   │   │   ├── in-3.json
+│   │   │   │   ├── in-4.json
+│   │   │   │   ├── in-5.json
+│   │   │   │   ├── in-6.json
+│   │   │   │   ├── in-7.json
+│   │   │   │   ├── in-8.json
+│   │   │   │   └── in-9.json
+│   │   │   └── output
+│   │   │       ├── out-1.json
+│   │   │       ├── out-10.json
+│   │   │       ├── out-11.json
+│   │   │       ├── out-12.json
+│   │   │       ├── out-13.json
+│   │   │       ├── out-14.json
+│   │   │       ├── out-15.json
+│   │   │       ├── out-16.json
+│   │   │       ├── out-17.json
+│   │   │       ├── out-18.json
+│   │   │       ├── out-19.json
+│   │   │       ├── out-2.json
+│   │   │       ├── out-20.json
+│   │   │       ├── out-3.json
+│   │   │       ├── out-4.json
+│   │   │       ├── out-5.json
+│   │   │       ├── out-6.json
+│   │   │       ├── out-7.json
+│   │   │       ├── out-8.json
+│   │   │       └── out-9.json
+│   │   ├── states_mean
+│   │   │   ├── input
+│   │   │   │   ├── in-1.json
+│   │   │   │   ├── in-2.json
+│   │   │   │   ├── in-3.json
+│   │   │   │   ├── in-4.json
+│   │   │   │   ├── in-5.json
+│   │   │   │   ├── in-6.json
+│   │   │   │   ├── in-7.json
+│   │   │   │   ├── in-8.json
+│   │   │   │   └── in-9.json
+│   │   │   └── output
+│   │   │       ├── out-1.json
+│   │   │       ├── out-2.json
+│   │   │       ├── out-3.json
+│   │   │       ├── out-4.json
+│   │   │       ├── out-5.json
+│   │   │       ├── out-6.json
+│   │   │       ├── out-7.json
+│   │   │       ├── out-8.json
+│   │   │       └── out-9.json
+│   │   └── worst5
+│   │       ├── input
+│   │       │   ├── in-1.json
+│   │       │   ├── in-2.json
+│   │       │   ├── in-3.json
+│   │       │   ├── in-4.json
+│   │       │   ├── in-5.json
+│   │       │   ├── in-6.json
+│   │       │   ├── in-7.json
+│   │       │   ├── in-8.json
+│   │       │   └── in-9.json
+│   │       └── output
+│   │           ├── out-1.json
+│   │           ├── out-2.json
+│   │           ├── out-3.json
+│   │           ├── out-4.json
+│   │           ├── out-5.json
+│   │           ├── out-6.json
+│   │           ├── out-7.json
+│   │           ├── out-8.json
+│   │           └── out-9.json
+│   ├── unittests
+│   │   ├── README.md
+│   │   └── TestWebserver.py
+│   └── webserver.log
+├── compose.yaml
+└── frontend
+    ├── Dockerfile
+    ├── README.md
+    ├── index.html
+    ├── package-lock.json
+    ├── package.json
+    ├── postcss.config.js
+    ├── public
+    │   └── vite.svg
+    ├── src
+    │   ├── App.css
+    │   ├── App.tsx
+    │   ├── assets
+    │   │   ├── favicon.ico
+    │   │   ├── image.jpg
+    │   │   └── video.mp4
+    │   ├── components
+    │   │   ├── Footer
+    │   │   │   └── Footer.tsx
+    │   │   ├── Home
+    │   │   │   └── Home.tsx
+    │   │   ├── NavBar
+    │   │   │   └── NavBar.tsx
+    │   │   └── Result
+    │   │       └── Result.tsx
+    │   ├── index.css
+    │   ├── main.tsx
+    │   └── vite-env.d.ts
+    ├── tailwind.config.js
+    ├── tsconfig.json
+    ├── tsconfig.node.json
+    └── vite.config.ts
+
+42 directories, 272 files
+```
+
 * ***Docker*** - am creat un fișier *Dockerfile* pentru a putea rula serverul într-un container Docker ca să
 numai trebuiască să pornesc *venv*-ul și ca să mai învaț cum sa dau deploy la o aplicație intr-un container docker.
 ```Dockerfile
@@ -313,13 +676,13 @@ ifeq ($(and $(IS_VENV_ACTIVE),$(not $(IS_DOCKER_ACTIVE))),false)
 endif
 
 build_docker:
-	docker build -t webserver .
+    docker build -t webserver .
 
 run_docker:
-	docker run -p 5000:5000 webserver
+    docker run -p 5000:5000 webserver
 
 clean_docker:
-	docker rmi -f webserver
+    docker rmi -f webserver
 ```
 
 * ***Reset Counter*** - am adăugat o rută care resetează counterul de job-uri, pentru a putea rula unit testele și checker-ul fără a mai fi nevoit să repornesc serverul.
@@ -389,7 +752,7 @@ cum ar trebui să implementez anumite funcționalități și am fost nevoit să 
 de la commit-ul 20, am avut niște probleme cu checker-ul, care imi pica 1-2 cereri din cauza unor erori
 de I/O pe care le-am reperat dupa o privire mai atenta in log-uri, vazând că la un moment dat, când încercam
 să citesc din fișierul de output, acesta avea dimensiunea 0 din cauza că nu se terminase de scris rezultatul
-în el. Am rezolvat această problemă prin a return un răspuns de tip *running* în cazul în care mi se 
+în el. Am rezolvat această problemă prin a return un răspuns de tip *running* în cazul în care mi se
 aruncă o excepție de tip *JSONDecodeError*.
 
 Câteva lucruri interesante au fost legate de biblioteca *pandas*, și de cât de ușor mi-a fost să fac
@@ -399,7 +762,7 @@ calculele cerute folosind această bibliotecă. (M-am simțit ca la lab-ul de BD
 Resurse utilizate
 -
 
-* ***Tema 2 la APD*** - am folosit cunoștințele de la tema 2 de la APD pentru a implementa ThreadPool-ul  cu ajutorul *threading* și *queue*. Link aici la implementarea mea: https://github.com/ReGeLePuMa/Load-Balancer
+* ***Tema 2 la APD*** - am folosit cunoștințele de la tema 2 de la APD pentru a implementa ThreadPool-ul  cu ajutorul *threading* și *queue*. Link aici la implementarea mea: *https://github.com/ReGeLePuMa/Load-Balancer*
 
 * ***https://realpython.com/pandas-dataframe/*** - pentru utilizare de cereri *pandas*
 
@@ -408,6 +771,14 @@ Resurse utilizate
 * ***https://circleci.com/blog/application-logging-with-flask/*** - logging în Flask
 
 * ***https://github.com/kubeflow/examples/blob/master/.pylintrc*** - pentru a-mi face un fișier *.pylintrc* pentru a-mi verifica codul
+
+* ***https://mherman.org/blog/dockerizing-a-react-app/*** - dockerizare frontend
+
+* ***https://docs.docker.com/get-started/08_using_compose/*** - folosire docker compose pentru unire frontend cu backend
+
+* ***https://www.koyeb.com/tutorials/deploy-apps-using-docker-compose-on-koyeb*** - pentru deploy pe koyeb (nu a mers :()
+
+* Numeroasele proiecte de hackathon/personale de React, îndeosebi *https://github.com/ReGeLePuMa/react-website* și *https://github.com/DanAlin19/BESTEM*
 
 Git
 -
