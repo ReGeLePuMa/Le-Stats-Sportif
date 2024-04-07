@@ -1,4 +1,4 @@
-FROM node:21-alpine
+FROM node:20.12.1-alpine
 WORKDIR /app
 COPY package.json .
 RUN npm install --no-audit
