@@ -1,8 +1,8 @@
-FROM node:20.12.1-alpine
+FROM python:3.9-slim-buster
 WORKDIR /app
-COPY package.json .
-RUN npm install --no-audit
-COPY . .
-RUN npm run build
+COPY requirements.txt requirements.txt
+COPY dist/ dist/
+COPY server.py server.py
+RUN pip install -r requirements.txt
 EXPOSE 8080
-CMD [ "npm", "run", "host"]
+CMD ["python", "server.py"]
