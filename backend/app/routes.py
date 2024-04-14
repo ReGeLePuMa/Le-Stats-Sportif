@@ -84,8 +84,21 @@ def get_response(job_id):
         return jsonify({"status": "running"})
     return jsonify({"status": "Invalid job_id"}), 402
 
+def check_auth(username, password):
+    return username == 'ReGeLePuMa' and password == 'adi@minune2k24'
+
+# Decorator for requiring authorization
+def requires_auth(f):
+    def decorated(*args, **kwargs):
+        auth = request.authorization
+        if not auth or not check_auth(auth.username, auth.password):
+            return jsonify({"error": "Authorization Required"}), 401
+        return f(*args, **kwargs)
+    return decorated
+
 @webserver.route('/graceful_shutdown', methods=['GET'])
 @webserver.route('/api/graceful_shutdown', methods=['GET'])
+@requires_auth
 def graceful_shutdown():
     # Check if method is GET
     if request.method != 'GET':
