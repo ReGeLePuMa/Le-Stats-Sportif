@@ -87,7 +87,6 @@ def get_response(job_id):
 def check_auth(username, password):
     return username == 'ReGeLePuMa' and password == 'adi@minune2k24'
 
-# Decorator for requiring authorization
 def requires_auth(f):
     def decorated(*args, **kwargs):
         auth = request.authorization
@@ -95,6 +94,14 @@ def requires_auth(f):
             return jsonify({"error": "Authorization Required"}), 401
         return f(*args, **kwargs)
     return decorated
+
+def requires_auth2(f):
+    def decorated2(*args, **kwargs):
+        auth = request.authorization
+        if not auth or not check_auth(auth.username, auth.password):
+            return jsonify({"error": "Authorization Required"}), 401
+        return f(*args, **kwargs)
+    return decorated2
 
 @webserver.route('/graceful_shutdown', methods=['GET'])
 @webserver.route('/api/graceful_shutdown', methods=['GET'])
@@ -111,6 +118,7 @@ def graceful_shutdown():
 
 @webserver.route('/reset_counter', methods=['GET'])
 @webserver.route('/api/reset_counter', methods=['GET'])
+@requires_auth2
 def reset_counter():
     # Check if method is GET
     if request.method != 'GET':
