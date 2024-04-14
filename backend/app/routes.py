@@ -390,5 +390,5 @@ def state_mean_by_category_request():
 @webserver.route('/')
 @webserver.route('/api')
 def index():
-    routes = [f"Endpoint: \{rule}\ Methods: {','.join(rule.methods)}" for rule in webserver.url_map.iter_rules()]
+    routes = [f"Endpoint: {rule.rule} , Methods: {','.join(rule.methods)}" for rule in webserver.url_map.iter_rules() if not rule.rule.startswith('/static')]
     return jsonify({"status" : "ok", "message": "Welcome to the API!", "routes" : routes}), 200
