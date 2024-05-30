@@ -1,5 +1,5 @@
-Nume: Petrea Andrei
-Grupă: 331CC
+Nume: Petrea Andrei  
+Grupă: 331CC  
 
 # Tema 1 - Le Stats Sportif
 
