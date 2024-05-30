@@ -9,7 +9,7 @@ Organizare
 Pentru început, am completat ThreadPool-ul din cadrul fișierului *task_runner.py*, bazându-mă pe
 mecanismul din **Figura 1**.
 
-![Fig 1](https://www.nginx.com/wp-content/uploads/2016/07/thread-pools-worker-process-event-cycle.png)
+![Fig 1](https://miro.medium.com/v2/resize:fit:1024/0*OEendTv23yVDaDPC.png)
 *Fig. 1*
 
 Pentru realizarea calculelor, am folosit șablonul de proiectare *Strategy*, definindu-mi astfel
